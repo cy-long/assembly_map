@@ -9,16 +9,26 @@ library(igraph)
 num <- 3
 stren <- 1
 conne <- 1
-
 A <- generate_Interaction_matrix(num, stren, conne) #Temporarily fix num = 3
 r <- parameterization_feasible(A, num)
 
+# ---- Create list of sub-communities
+#all subcmmunities of the same species number is stored in one combn matrix
+#all combn matrix is stored in one list
+sub_coms = list()
 
-# ---- create matrixes that store f/s status for sub-communities----
+for (s in 1:num) {
+  sub_coms[[s]] <- combn(num, s)
+}
+
+
+
+# ---- create matrixes that store f/s status for sub-communities ----
 mat_fea <- matrix(0, 3, 3)
 mat_sta <- matrix(0, 3, 3)
 
-# ---- create adjacency matrix for the network----
+
+# ---- create adjacency matrix for the network ----
 data <- matrix(rep(0, 2^ (2 * num)), nrow = 2^num)
 colnames(data) <- c("0", "1", "2", "3", "12", "13", "23", "123")
 rownames(data) <- c("0", "1", "2", "3", "12", "13", "23", "123")
@@ -136,3 +146,4 @@ plot(assemble_map,
      vertex.label.dist = 1.5,
      vertex.label.color = "black",
      vertex.frame.color = NA)
+
