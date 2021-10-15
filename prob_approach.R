@@ -10,7 +10,7 @@ library(igraph)
 # ---- Initialize ----
 num <- 4
 stren <- 1
-conne <- 0.6
+conne <- 0.5
 A <- generate_Interaction_matrix(num, stren, conne)
 
 # ---- Create the list of sub-communities ----
@@ -74,5 +74,58 @@ for (s in 1:(num-1)) {
     
   }
 }
+for (s in 1:2^num){
+  for (j in 1:2^num){
+    T[s,j] <- T[s,j]/sum(T[s,])
+  }
+}
+
 
 # ---- Visualize ----
+
+# Specify row/col names for transition matrix
+names <- c("0")
+for (s in 1:num) {
+  names <- c(names, c(apply(sub_coms[[s]], 2, convert2names)))
+}
+names
+colnames(T) = rownames(T) = names
+
+# Generate adjacency matrix with a threshold
+set_conne <- function(value, threshold){
+  if(!is.na(value) && value>threshold){
+    return(1)
+  }else{
+    return(0)
+  }
+}
+adj_mat <- apply(T, c(1,2), set_conne, 0.4)
+
+value = c()
+for (i in 1:nrow(adj_mat)){
+  for (j in 1:ncol(adj_mat)){
+    if(adj_mat[i,j] != 0){
+      value = c(value,T[i,j])
+    }
+  }
+}
+
+grid <- matrix(0, nrow= 2^num, ncol = 2)
+l <- 2
+for (s in 1:num) {
+  for (i in 1:choose(num,s)) {
+    grid[l,1] <- s
+    grid[l,2] <- (choose(num,s)-1)/2 -(i - 1)
+    l <- l + 1
+  }
+}
+
+network <- graph_from_adjacency_matrix(adj_mat)
+plot(network,
+     layout = grid,
+     edge.arrow.size = 0.4,
+     vertex.label.color = "black",
+     vertex.frame.color = "black",
+     vertex.color = NA,
+     edge.width = 3*value
+)
