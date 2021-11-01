@@ -1,5 +1,5 @@
 # assembly_map
-This code randomly generates a ecological community represented by its interaction matrix.
+This code randomly generates the interaction matrix of a community and all its sub-communities. It checks the feasibility and stability of each community, measuring the relative size of its feasibility domain. After that, it determines whether a given sub-community can be assembled from its smaller sub-communities, with the adding of a new species. Finally it illustrates all the possible transitons as described before.
 
 For the dynamical simulation version, it checks the feasibility and stability of each community, measuring the relative size of its feasibility domain. After that, it determines whether a given sub-community can be assembled from its smaller sub-communities, with the adding of a new species. Finally it illustrates all the possible transitons as described before.
 
