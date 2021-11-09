@@ -80,9 +80,11 @@ for (s in 1:(num - 1)) {
 }
 # Generate the matrixes and their norm form
 matH <- matH + matT + matD
-matT_norm < - norm_row_sum(matT)
-matD_norm < - norm_row_sum(matD)
-matH_norm < - norm_row_sum(matH)
+diag(matH) <- 1 #include self-maintaining probability
+
+matT_norm <- norm_row_sum(matT)
+matD_norm <- norm_row_sum(matD)
+matH_norm <- norm_row_sum(matH)
 
 
 # ---- Visualize ----
@@ -138,3 +140,31 @@ plot(network,
      vertex.color = NA,
      vertex.size = 30 * omega_node / max(omega_node)
 )
+
+# ---- Compute the entropy ----
+mat_ent <- matH_norm
+
+#>use data from Hill2004 to check if the algorithm works well
+# mat_ent <- read.csv("data_hill2004.csv", header = FALSE, sep=",") 
+
+#>NA in Omega and thus in Trans needs to be fixed
+
+Entropy <- function(Trans){
+  logsum <- function(x){
+    sum <- 0
+    for (i in 1:length(x)){
+      if(x[i] > 0) sum <- sum + x[i]*log(x[i], base = exp(1))
+    }
+    return(sum)
+  }
+  vec_p <- apply(Trans, 2, logsum)
+  vec_w <- eigen(Trans)$vectors[,1] #the dominated vector
+  vec_w <- vec_w/(sum(vec_w))
+  return(-sum(vec_p * vec_w))
+}
+
+Ent_a <- Entropy(mat_ent) #absolute entropy
+Ent_r <- Entropy(mat_ent)/log(nrow(mat_ent)) #relative entropy
+
+
+

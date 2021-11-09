@@ -1,6 +1,7 @@
 library(tidyverse)
 library(mvtnorm)
 library(mgcv)
+library(binaryLogic)
 ##------------ Original funcs ------------
 
 #function that generates a uniform initial conditons and solve the LV model
@@ -445,6 +446,7 @@ sampling_overlap <- function(A,B) {
   percent <- 1:Nsample %>% 
     map_dbl(~get_feasibility(abunbance_all[.x,])) %>% 
     mean()
+  
   Omega(A) * percent^(1/nrow(A))
 }
 
@@ -495,9 +497,27 @@ Omega_overlap_ext <- function(A, B, comp_A, comp_B) {
         loc[i] <- 1
       }
     }
-    A_ext_p <- matrix_scatter(A, loc, +1)
-    A_ext_n <- matrix_scatter(A, loc, -1)
-    return(Omega_overlap(A_ext_p, B) + Omega_overlap(A_ext_n, B))
+    
+    #create a matrix of all possible diagnal combinations of +-
+    generate_diag_string <- function(N){
+      record <- matrix(0, 2^N, N)
+      for (i in 1:(2^N-1)){
+        record[i+1, (N+1-length(as.binary(i))):N] <- as.binary(i)
+      }
+      record = apply(record,c(1,2), function(x) {if(x <= 0){return(-1)} else return(1)})
+      return(record)
+    }
+    diag_mat <- generate_diag_string(sum(loc))
+    
+    #compute Omega_overlap
+    #Omega_ext <- 0
+    Omega_ext <- c(rep(0, (2 ^ sum(loc))))
+    for (i in 1:(2 ^ sum(loc))){
+      A_ext <- matrix_scatter(A, loc, diag_mat[i, ])
+      #Omega_ext = Omega_ext + Omega_overlap(A_ext, B)
+      Omega_ext[i] = Omega_overlap(A_ext, B)
+    }
+    return(sum(Omega_ext))
     
   } else if (all(is.element(comp_B, comp_A))) {
     Omega_overlap_ext(B, A, comp_B, comp_A) #change the variations and do recursion
@@ -510,9 +530,9 @@ Omega_overlap_ext <- function(A, B, comp_A, comp_B) {
 # input: mat = one interaction matrix, usually at a lower dimension;
 # input: loc = location vector indicating the index of the extended matrix
 #where zeros and diagonal elements are inserted, coded in sequence of 0/1
-# input: diag = diagonal element, can be +1 or -1
+# input: apnd_diag = diagonal elements series
 # output: the extended matrix
-matrix_scatter <- function(mat, loc, diag) {
+matrix_scatter <- function(mat, loc, apnd_diag) {
   if(is.null(ncol(mat))) {
     n_mat <- 1
   } else {
@@ -540,11 +560,13 @@ matrix_scatter <- function(mat, loc, diag) {
       }
     }
   } else {mat_ext[1+mov[1], 1+mov[1]] <- mat}
-  # set new diagonal element to -1
+  # set new diagonal element
   ##>for other modification policy, rewrite this part
+  d <- 1
   for (k in 1:length(loc)) {
     if(loc[k] == 1){
-      mat_ext[k,k] <- diag
+      mat_ext[k,k] <- apnd_diag[d]
+      d <- d + 1
     }
   }
   return(mat_ext)
@@ -586,5 +608,4 @@ is.vec_in_mat <- function(vec,mat){
 norm_row_sum <- function(mat){
   t(apply(mat,1,function(x) x/sum(x)))
 }
-
 
