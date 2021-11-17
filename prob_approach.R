@@ -35,9 +35,9 @@ for (s in 1:num) {
   }
 }
 
-##>just randomly set to 1/num, for we have no a priori knowledge on them
-matT[1, 2:(num+1)] <- 1/num
-matD[2:(num+1), 1] <- 1/num
+##>just randomly set to 1/Z, for we have no a priori knowledge on them
+matT[1, 2:(2 ^ num)] <- 1/(2 ^ num)
+matD[2:(2 ^ num), 1] <- 1/(2 ^ num)
 
 # Compute normalized omega for each node 
 omega_node <- c(0.5, rep(0,2^num-1))
@@ -141,15 +141,25 @@ plot(network,
      vertex.size = 30 * omega_node / max(omega_node)
 )
 
-# ---- Compute the entropy ----
+# ---- Markov process and information analysis ----
 mat_ent <- matH_norm
-
+#>NA in Omega and thus in Trans needs to be fixed
+mat_ent[is.na(mat_ent)] <- 0
 #>use data from Hill2004 to check if the algorithm works well
 # mat_ent <- read.csv("data_hill2004.csv", header = FALSE, sep=",") 
 
-#>NA in Omega and thus in Trans needs to be fixed
+# Stationary distribution
+Stat_dist <- function(Trans){
+  Trans <- t(Trans)
+  vec_w <- eigen(Trans)$vectors[,1]
+  vec_w <- vec_w/sum(vec_w)
+  return(vec_w)
+}
+sd <- Stat_dist(mat_ent)
 
+# Entropy
 Entropy <- function(Trans){
+  Trans <- t(Trans)
   logsum <- function(x){
     sum <- 0
     for (i in 1:length(x)){
@@ -162,9 +172,20 @@ Entropy <- function(Trans){
   vec_w <- vec_w/(sum(vec_w))
   return(-sum(vec_p * vec_w))
 }
-
 Ent_a <- Entropy(mat_ent) #absolute entropy
 Ent_r <- Entropy(mat_ent)/log(nrow(mat_ent)) #relative entropy
 
+# One-species?
+Pr <- c(rep(0, num))
+for (i in 1:num){
+  for (t in 1:2^num){
+    #find the sub-community that contains spi and add the stationary distribution value
+    if(is.element(i, convert2sets(names[t]))){
+      Pr[i] <- Pr[i] + sd[t]
+    }
+  }
+}
+Pr
 
 
+# ---- Least resiliance? Most probable path? ----
