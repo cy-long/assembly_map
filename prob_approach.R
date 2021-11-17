@@ -147,7 +147,7 @@ mat_ent <- matH_norm
 mat_ent[is.na(mat_ent)] <- 0
 #>use data from Hill2004 to check if the algorithm works well
 # mat_ent <- read.csv("data_hill2004.csv", header = FALSE, sep=",") 
-
+# mat_ent <- t(mat_ent)
 # Stationary distribution
 Stat_dist <- function(Trans){
   Trans <- t(Trans)
