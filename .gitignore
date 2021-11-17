@@ -37,8 +37,4 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
-
-# ---- User Specified ---
 *.DS_Store
-*.tmp.RData
-/.vscode

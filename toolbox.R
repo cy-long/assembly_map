@@ -437,24 +437,22 @@ total_volume <- function(partition, vertex) {
 sampling_overlap <- function(A,B) {
   mat <- solve(B) %*% A
   Nsample <- 10^5
-  abundance_all <- rmvnorm(n = Nsample, mean = rep(0, nrow(A))) %>% 
+  abunbance_all <- rmvnorm(n = Nsample, mean = rep(0, nrow(A))) %>% 
     {abs(./sqrt(rowSums(.^2)))}
   get_feasibility <- function(N_A){
     N_B <- mat %*% matrix(N_A,ncol=1) %>% c()
     if_else(sum(N_B >= -1e-10) == length(N_B), 1, 0) 
   }
   percent <- 1:Nsample %>% 
-    map_dbl(~get_feasibility(abundance_all[.x,])) %>% 
+    map_dbl(~get_feasibility(abunbance_all[.x,])) %>% 
     mean()
   
-  #Omega(A) * percent^(1/nrow(A))
-  #Raw overlap, not the normailzed one
-  return(Omega(A) * percent) 
+  Omega(A) * percent^(1/nrow(A))
 }
 
 # function that computes the overlap of two feasibility domains
 # inputs: A = one interaction matrix, B = another interaction matrix
-# output: volume_overlap = the raw feasibility of the intersection region
+# output: volume_overlap = the normalize feasibility of the intersection region
 Omega_overlap <- function(A, B) {
   num <- nrow(A)
   
@@ -483,10 +481,6 @@ convert2names <- function(vec) {
     i = i+1
   }
   str
-}
-
-convert2sets <- function(str) {
-  as.numeric(strsplit (str,"")[[1]] )
 }
 
 # function that computes the overlap of two feasibility domains with different dimensions
@@ -520,9 +514,8 @@ Omega_overlap_ext <- function(A, B, comp_A, comp_B) {
     Omega_ext <- c(rep(0, (2 ^ sum(loc))))
     for (i in 1:(2 ^ sum(loc))){
       A_ext <- matrix_scatter(A, loc, diag_mat[i, ])
-      #Omega_ext = Omega_ext + Omega_overlap(B,A_ext)
-      #Omega_ext[i] = Omega_overlap(A_ext, B)
-      Omega_ext[i] = Omega_overlap(B, A_ext)
+      #Omega_ext = Omega_ext + Omega_overlap(A_ext, B)
+      Omega_ext[i] = Omega_overlap(A_ext, B)
     }
     return(sum(Omega_ext))
     
@@ -615,3 +608,4 @@ is.vec_in_mat <- function(vec,mat){
 norm_row_sum <- function(mat){
   t(apply(mat,1,function(x) x/sum(x)))
 }
+
