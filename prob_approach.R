@@ -7,8 +7,10 @@ library(deSolve)
 library(igraph)
 
 # ---- Initialize ----
-num <- 4; stren <- 1; conne <- 0.5
+num <- 4; stren <- 1; conne <- 1
 A <- generate_Interaction_matrix(num, stren, conne)
+#A <- as.matrix(read.table(paste("invivo.txt")))
+
 
 # ---- Create the list of sub-communities ----
 ##>all subcmmunities of the same species number (defined as a group) is stored in one combn matrix
@@ -40,11 +42,20 @@ matT[1, 2:(2 ^ num)] <- 1/(2 ^ num)
 matD[2:(2 ^ num), 1] <- 1/(2 ^ num)
 
 # Compute normalized omega for each node 
+n_omega_node <- c(0.5, rep(0, 2^num-1))
+for (s in 1:num){
+  for (i in 1:choose(num, s)){
+    ori <- sub_coms[[s]][, i]
+    n_omega_node[t[s,i]] <- Omega(A[ori, ori])^(1/s)
+  }
+}
+
+# Compute raw omega for each node 
 omega_node <- c(0.5, rep(0,2^num-1))
 for (s in 1:num){
   for (i in 1:choose(num, s)){
     ori <- sub_coms[[s]][, i]
-    omega_node[t[s,i]] <- Omega(A[ori, ori])^(1/s)
+    omega_node[t[s,i]] <- Omega(A[ori, ori])
   }
 }
 
@@ -80,16 +91,21 @@ for (s in 1:(num - 1)) {
 }
 # Generate the matrixes and their norm form
 matH <- matH + matT + matD
-diag(matH) <- 1 #include self-maintaining probability
 
 matT_norm <- norm_row_sum(matT)
 matD_norm <- norm_row_sum(matD)
 matH_norm <- norm_row_sum(matH)
+matT_norm <- (1-omega_node)*matT_norm
+matD_norm <- (1-omega_node)*matD_norm
+matH_norm <- (1-omega_node)*matH_norm
+diag(matT_norm) <- omega_node
+diag(matD_norm) <- omega_node
+diag(matH_norm) <- omega_node
 
 
-# ---- Visualize ----
-threshold <- 0.2
-mat_disp <- matH
+# ---- Visualize ----------
+threshold <- 0
+mat_disp <- matH_norm
 
 # Specify row/col names for transition matrix
 names <- c("0")
@@ -129,17 +145,6 @@ for (s in 1:num) {
   }
 }
 
-# Display the graph
-network <- graph_from_adjacency_matrix(mat_adj)
-plot(network,
-     layout = grid,
-     edge.arrow.size = 0.4,
-     edge.width = 3 * value / max(value),
-     vertex.label.color = "black",
-     vertex.frame.color = "black",
-     vertex.color = NA,
-     vertex.size = 30 * omega_node / max(omega_node)
-)
 
 # ---- Markov process and information analysis ----
 mat_ent <- matH_norm
@@ -155,7 +160,28 @@ Stat_dist <- function(Trans){
   vec_w <- vec_w/sum(vec_w)
   return(vec_w)
 }
-sd <- Stat_dist(mat_ent)
+sd <- as.numeric(Stat_dist(mat_ent))
+
+
+# Display the graph
+diag(mat_adj) <- 0
+# Display the graph
+palf <- colorRampPalette(c("dodgerblue","darkorange"))
+pal1 <- heat.colors(length(n_omega_node), alpha=1) 
+pal2 <- palf(length(n_omega_node))
+r <- rank(n_omega_node)
+network <- graph_from_adjacency_matrix(mat_adj)
+plot(network,
+     layout = grid,
+     edge.arrow.size = 0.4,
+     edge.width = 3 * value / max(value),
+     vertex.label.color = "black",
+     vertex.frame.color = "black",
+     vertex.color = pal2[r],
+     #vertex.size = 30 * omega_node / max(omega_node)
+     vertex.size = 30 * (sd) / max(sd)
+)
+
 
 # Entropy
 Entropy <- function(Trans){
@@ -186,6 +212,5 @@ for (i in 1:num){
   }
 }
 Pr
-
 
 # ---- Least resiliance? Most probable path? ----

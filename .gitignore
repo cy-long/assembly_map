@@ -41,4 +41,5 @@ vignettes/*.pdf
 # ---- User Specified ---
 *.DS_Store
 *.tmp.RData
+*.tmp.R
 /.vscode
