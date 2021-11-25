@@ -615,3 +615,33 @@ is.vec_in_mat <- function(vec,mat){
 norm_row_sum <- function(mat){
   t(apply(mat,1,function(x) x/sum(x)))
 }
+
+# function that returns the cartesian product from sets (filter zero elements)
+# input: mat = matrix whose rows are original sets, using zeros as placeholders
+# output: out = matrix whose rows are possible combinations
+cartesian_prod <- function(mat){
+  if(is.null(nrow(mat))) {
+    out <- mat[!mat %in% 0]
+  }
+  else {
+    mat_rows <- list()
+    for (s in 1:nrow(mat)){
+      mat_rows[[s]] <- mat[s, !mat[s,] %in% 0]
+    }
+    out <- expand.grid(mat_rows)
+    colnames(out) <- NULL
+  }
+  return(as.matrix(out))
+}
+
+# function that computes pathwise probability of specified path
+# input: path = nodes of specified path, vector type; mat_sto = stochastic matrix
+# output: pathwise probability (the product of conditional probabilities) 
+prob_path <- function(path, mat_sto){
+  path <- c(1, path, 2 ^ num)
+  ind <- matrix(0,nrow = (length(path) - 1), ncol = 2)
+  for(i in 1:(length(path) - 1)){
+    ind[i,] <- c(path[i],path[i+1])
+  }
+  return(prod(mat_sto[ind]))
+}

@@ -103,6 +103,114 @@ diag(matD_norm) <- omega_node
 diag(matH_norm) <- omega_node
 
 
+# ---- Markov process and information analysis ----
+mat_ent <- matH_norm
+#>NA in Omega and thus in Trans needs to be fixed
+mat_ent[is.na(mat_ent)] <- 0
+#>use data from Hill2004 to check if the algorithm works well
+# mat_ent <- read.csv("data_hill2004.csv", header = FALSE, sep=",") 
+# mat_ent <- t(mat_ent)
+# Stationary distribution
+Stat_dist <- function(Trans){
+  Trans <- t(Trans)
+  vec_w <- eigen(Trans)$vectors[,1]
+  vec_w <- vec_w/sum(vec_w)
+  return(vec_w)
+}
+sd <- as.numeric(Stat_dist(mat_ent))
+
+
+# Entropy
+Entropy <- function(Trans){
+  Trans <- t(Trans)
+  logsum <- function(x){
+    sum <- 0
+    for (i in 1:length(x)){
+      if(x[i] > 0) sum <- sum + x[i]*log(x[i], base = exp(1))
+    }
+    return(sum)
+  }
+  vec_p <- apply(Trans, 2, logsum)
+  vec_w <- eigen(Trans)$vectors[,1] #the dominated vector
+  vec_w <- vec_w/(sum(vec_w))
+  return(-sum(vec_p * vec_w))
+}
+Ent_a <- Entropy(mat_ent) #absolute entropy
+Ent_r <- Entropy(mat_ent)/log(nrow(mat_ent)) #relative entropy
+
+# One-species?
+Pr <- c(rep(0, num))
+for (i in 1:num){
+  for (j in 1:2^num){
+    #find the sub-community that contains spi and add the stationary distribution value
+    if(is.element(i, convert2sets(names[j]))){
+      Pr[i] <- Pr[i] + sd[j]
+    }
+  }
+}
+#Pr
+
+# ----  pathwise probabilities ----
+# choose the stochastic matrix
+mat_sto <- matH_norm
+
+# generate potential paths
+paths <- list()
+for (k in 1:(num-1)){
+  paths_k <- matrix(nrow = 1, ncol = k)
+  for (s in 1:choose((num - 1), k)){
+    t_rows <- combn(1:(num - 1), k)[,s] #select layers
+    paths_k <- rbind(paths_k, cartesian_prod(t[t_rows, ]))
+  }
+  paths[[k]] <- paths_k[2:nrow(paths_k), ]
+}
+
+# compute pathwise probability from Markov chain
+entire_probs <- data.frame(
+  "n_step" = c(0),
+  "n_path" = c(1),
+  "v_prob" = c(mat_sto[1, 2 ^ num])
+)
+
+for (k in 1:(num-1)){
+  if(k == 1){
+    for (p in 1:length(paths[[k]])){
+      prob <- prob_path(paths[[k]][p], mat_sto)
+      entire_probs <- rbind(entire_probs, c(k,p,prob))
+    }
+  }
+  else{
+    for (p in 1:nrow(paths[[k]])){
+      prob <- prob_path(paths[[k]][p,], mat_sto)
+      entire_probs <- rbind(entire_probs, c(k,p,prob))
+    }
+  }
+}
+
+# filtering and visualization
+positive_probs <- entire_probs[(entire_probs$v_prob >= 1e-12), ]
+rownames(positive_probs) <- NULL
+positive_probs
+
+steps_log_probs <- list(); steps_nlog_probs <- list()
+
+steps_log_probs[[as.character(0)]] <- log(positive_probs$v_prob[1])
+for (k in 1:(num-1)){
+  steps_log_probs[[as.character(k)]] <-
+    log(positive_probs$v_prob[positive_probs$n_step %in% k])
+  steps_nlog_probs[[as.character(k)]] <- (1/k)*steps_log_probs[[as.character(k)]]
+}
+
+boxplot(steps_log_probs,
+        xlab = "middle_steps",
+        ylab = "log(probs)",
+        main = "Raw prob.dist. of assembly steps")
+
+boxplot(steps_nlog_probs,
+        xlab = "middle_steps",
+        ylab = "log(probs)",
+        main = "Normalized prob.dist. of assembly steps")
+
 # ---- Visualize ----------
 threshold <- 0
 mat_disp <- matH_norm
@@ -145,24 +253,6 @@ for (s in 1:num) {
   }
 }
 
-
-# ---- Markov process and information analysis ----
-mat_ent <- matH_norm
-#>NA in Omega and thus in Trans needs to be fixed
-mat_ent[is.na(mat_ent)] <- 0
-#>use data from Hill2004 to check if the algorithm works well
-# mat_ent <- read.csv("data_hill2004.csv", header = FALSE, sep=",") 
-# mat_ent <- t(mat_ent)
-# Stationary distribution
-Stat_dist <- function(Trans){
-  Trans <- t(Trans)
-  vec_w <- eigen(Trans)$vectors[,1]
-  vec_w <- vec_w/sum(vec_w)
-  return(vec_w)
-}
-sd <- as.numeric(Stat_dist(mat_ent))
-
-
 # Display the graph
 diag(mat_adj) <- 0
 # Display the graph
@@ -183,34 +273,4 @@ plot(network,
 )
 
 
-# Entropy
-Entropy <- function(Trans){
-  Trans <- t(Trans)
-  logsum <- function(x){
-    sum <- 0
-    for (i in 1:length(x)){
-      if(x[i] > 0) sum <- sum + x[i]*log(x[i], base = exp(1))
-    }
-    return(sum)
-  }
-  vec_p <- apply(Trans, 2, logsum)
-  vec_w <- eigen(Trans)$vectors[,1] #the dominated vector
-  vec_w <- vec_w/(sum(vec_w))
-  return(-sum(vec_p * vec_w))
-}
-Ent_a <- Entropy(mat_ent) #absolute entropy
-Ent_r <- Entropy(mat_ent)/log(nrow(mat_ent)) #relative entropy
 
-# One-species?
-Pr <- c(rep(0, num))
-for (i in 1:num){
-  for (t in 1:2^num){
-    #find the sub-community that contains spi and add the stationary distribution value
-    if(is.element(i, convert2sets(names[t]))){
-      Pr[i] <- Pr[i] + sd[t]
-    }
-  }
-}
-Pr
-
-# ---- Least resiliance? Most probable path? ----
