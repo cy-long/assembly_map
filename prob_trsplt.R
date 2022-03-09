@@ -1,17 +1,21 @@
 # nolint start
-# R-code that generate a web of nodes and paths
-#to illustrate possible path for the assembly of a given community
-#in a probablistic approach
+# Test if feasoveralp library works well in the assembly codes
+
 rm(list = ls())
 source("toolbox.R")
+source("overlap.R")
 library(deSolve)
 library(igraph)
 
-# ---- Initialize ----
-num <- 4; stren <- 1; conne <- 1
-A <- generate_Interaction_matrix(num, stren, conne)
-#A <- as.matrix(read.table(paste("invivo.txt")))
 
+# ---- Initialize ----
+num <- 4; stren <- 1; conne <- 0.5
+order <- 1
+
+
+#| A <- generate_Interaction_matrix(num, stren, conne)
+#A <- as.matrix(read.table(paste("invivo.txt")))
+A <- interaction_matrix_random(num, stren, conne)
 
 # ---- Create the list of sub-communities ----
 ##>all subcmmunities of the same species number (defined as a group) is stored in one combn matrix
@@ -38,30 +42,29 @@ for (s in 1:num) {
   }
 }
 
-##>just randomly set to 1/Z, for we have no a priori knowledge on them
+##>just randomly set to 1/Z, for we have no prior knowledge on them
 matT[1, 2:(2 ^ num)] <- 1/(2 ^ num)
 matD[2:(2 ^ num), 1] <- 1/(2 ^ num)
 
-# Compute normalized omega for each node 
+# Compute normalized & raw omega for each node
 n_omega_node <- c(0.5, rep(0, 2^num-1))
+omega_node <- c(0.5, rep(0, 2^num-1))
+
 for (s in 1:num){
   for (i in 1:choose(num, s)){
     ori <- sub_coms[[s]][, i]
-    n_omega_node[t[s,i]] <- Omega(A[ori, ori])^(1/s)
+    #| n_omega_node[t[s,i]] <- Omega(A[ori, ori])^(1/s)
+    #| omega_node[t[s,i]] <- Omega(A[ori, ori])
+    
+    n_omega_node[t[s,i]] <- calculate_omega(A[ori, ori])^(1/s)
+    omega_node[t[s,i]] <- calculate_omega(A[ori, ori])
   }
 }
 
-# Compute raw omega for each node 
-omega_node <- c(0.5, rep(0,2^num-1))
-for (s in 1:num){
-  for (i in 1:choose(num, s)){
-    ori <- sub_coms[[s]][, i]
-    omega_node[t[s,i]] <- Omega(A[ori, ori])
-  }
-}
 
 # Compute transitional probabilities
-for (s in 1:(num - 1)) {
+#| for (s in 1:(num - 1)) {
+for (s in 2:(num - 1)) {
   targ1 <- sub_coms[[s]]
   
   for (i in 1:choose(num, s)) {
@@ -72,24 +75,38 @@ for (s in 1:(num - 1)) {
       targ2 <- sub_coms[[k]]
       targ3 <- extend_communities(ori, num, k-s)
       
-      if (s >= 2){
+      #|if (s >= 2){
+      if (s >= 3) {
         for (j in (1:ncol(targ1))[-i]) {
           targ_mat <- A[targ1[, j], targ1[, j]]
-          matH[t[s, i], t[s, j]] <- Omega_overlap(ori_mat, targ_mat) / Omega(ori_mat)
+          #| matH[t[s, i], t[s, j]] <- Omega_overlap(ori_mat, targ_mat) / Omega(ori_mat)
+          if (order == 1){
+            matH[t[s, i], t[s, j]] <- calculate_omega_overlap(ori_mat, targ_mat) /calculate_omega(ori_mat)
+          } else {
+            matH[t[s, i], t[s, j]] <- calculate_omega_overlap(targ_mat, ori_mat) /calculate_omega(ori_mat)
+          }
+          
         }
       }
       for (j in 1:ncol(targ2)) {
         #filter those that completely have ori as their subset
         if(is.vec_in_mat(targ2[, j], targ3)) {
           targ_mat <- A[targ2[, j], targ2[, j]]
-          Omega_ij <- Omega_overlap_ext(ori_mat, targ_mat, ori, targ2[, j])
-          matT[t[s, i], t[k, j]] <- Omega_ij / Omega(ori_mat)
-          matD[t[k ,j], t[s, i]] <- Omega_ij / Omega(targ_mat)
+          
+          print(c(s,i,k,j))
+          Omega_ij <- Omega_overlap_ext(ori_mat, targ_mat, ori, targ2[, j], order)
+          matT[t[s, i], t[k, j]] <- Omega_ij / calculate_omega(ori_mat)
+          matD[t[k ,j], t[s, i]] <- Omega_ij / calculate_omega(targ_mat)
         }
       }
     }
   }
 }
+
+
+
+
+
 # Generate the matrixes and their norm form
 matH <- matH + matT + matD
 
@@ -273,4 +290,4 @@ plot(network,
      vertex.size = 30 * (sd) / max(sd)
 )
 
-#nolint end
+# nolint end

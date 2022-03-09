@@ -1,3 +1,8 @@
+# nolint start
+library("geometry")
+library("uniformly")
+library("dplyr")
+
 #' function that generates a random matrix (as in May, Nature (1972))
 #' @param num number of species
 #' @param stren standard deviation of interaction strength
@@ -21,20 +26,25 @@ interaction_matrix_random <- function(num, stren, conne) {
 #' @return the normalized feasibility
 #' @export
 calculate_omega <- function(vertex, nsamples = 100) {
-  num <- nrow(vertex)
-  vertex <- generate_span_vectors(vertex)
-
-  set.seed(1010)
-  vertex <- cbind(
-    vertex,
-    vertex %*% t(abs(runif_on_sphere(n = nsamples, d = ncol(vertex), r = 1)))
-  )
-  vertex <- generate_span_vectors(vertex)
-  vertex <- cbind(vertex, rep(0, num))
-
-  vol_ori <- (convhulln(t(vertex), output.options = TRUE)$vol)^(1 / num)
-  vol_ball <- (pi^(num/2) / gamma(num/2 + 1))^(1 / num)
-  vol_ori/vol_ball
+  if(is.null(nrow(vertex))) {return(1/2) }
+  else{
+    num <- nrow(vertex)
+    vertex <- generate_span_vectors(vertex)
+  
+    #set.seed(1010)
+    vertex <- cbind(
+      vertex,
+      vertex %*% t(abs(runif_on_sphere(n = nsamples, d = ncol(vertex), r = 1)))
+    )
+    vertex <- generate_span_vectors(vertex)
+    vertex <- cbind(vertex, rep(0, num))
+  
+    #vol_ori <- (convhulln(t(vertex), output.options = TRUE)$vol)^(1 / num)
+    vol_ori <- (convhulln(t(vertex), output.options = TRUE)$vol)
+    #vol_ball <- (pi^(num/2) / gamma(num/2 + 1))^(1 / num)
+    vol_ball <- (pi^(num/2) / gamma(num/2 + 1))
+    vol_ori/vol_ball
+  }
 }
 
 #' function that normalizes a vector in the L2 norm
@@ -234,3 +244,4 @@ calculate_omega_overlap <- function(A, B, nsamples = 100) {
 
   volume_overlap
 }
+# nolint end

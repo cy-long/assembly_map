@@ -1,7 +1,10 @@
+# nolint start
 library(tidyverse)
 library(mvtnorm)
 library(mgcv)
 library(binaryLogic)
+source("overlap.R")
+
 ##------------ Original funcs ------------
 
 #function that generates a uniform initial conditons and solve the LV model
@@ -139,7 +142,7 @@ Omega <- function(alpha) {
       out <- d[1]
       return(out)
     }
-    f <- function(m) class(try(solve(t(m) %*% m), silent = T)) == "matrix"
+    f <- function(m) class(try(solve(t(m) %*% m), silent = T))[1] == "matrix"
     if (f(alpha) == FALSE) {
       return(0)
     } else {
@@ -467,7 +470,7 @@ Omega_overlap <- function(A, B) {
     volume_overlap <- total_volume(partition, overlap_vertex)
   }
   
-  volume_overlap <- sampling_overlap(A,B)
+  #volume_overlap <- sampling_overlap(A,B)
   volume_overlap
 }
 
@@ -493,7 +496,7 @@ convert2sets <- function(str) {
 # inputs: A = one interaction matrix, B = another interaction matrix, 
 # comp_A = composition of community A, comp_B = composition of community B
 # output: volume_overlap = the normalized feasibility of the intersection region
-Omega_overlap_ext <- function(A, B, comp_A, comp_B) {
+Omega_overlap_ext <- function(A, B, comp_A, comp_B, order = 1) {
   if (all(is.element(comp_A, comp_B))) {
     
     #create a location vector to store indexes where insertion happens
@@ -504,7 +507,7 @@ Omega_overlap_ext <- function(A, B, comp_A, comp_B) {
       }
     }
     
-    #create a matrix of all possible diagnal combinations of +-
+    #create a matrix of all possible diagonal combinations of +-
     generate_diag_string <- function(N){
       record <- matrix(0, 2^N, N)
       for (i in 1:(2^N-1)){
@@ -517,12 +520,14 @@ Omega_overlap_ext <- function(A, B, comp_A, comp_B) {
     
     #compute Omega_overlap
     #Omega_ext <- 0
-    Omega_ext <- c(rep(0, (2 ^ sum(loc))))
+    Omega_ext <- c(rep(0.001, (2 ^ sum(loc))))
     for (i in 1:(2 ^ sum(loc))){
       A_ext <- matrix_scatter(A, loc, diag_mat[i, ])
-      #Omega_ext = Omega_ext + Omega_overlap(B,A_ext)
-      #Omega_ext[i] = Omega_overlap(A_ext, B)
-      Omega_ext[i] = Omega_overlap(B, A_ext)
+      #|
+      if(order == 1) {
+        Omega_ext[i] = calculate_omega_overlap(A_ext, B)
+      }
+      else Omega_ext[i] = calculate_omega_overlap(B, A_ext)
     }
     return(sum(Omega_ext))
     
@@ -581,7 +586,7 @@ matrix_scatter <- function(mat, loc, apnd_diag) {
 
 # function that adds one species to a sub-commnutiy
 # inputs: comm = one vector that represents community components, num = total number of species, 
-#augm = adding number of species
+# augm = adding number of species
 # output: extended communities in a matrix, where each col has one more species
 extend_communities <- function(comm, num, augm) {
   if(isTRUE(augm > num - length(comm))) warning("augmentation exceeds total number of species")
@@ -645,3 +650,15 @@ prob_path <- function(path, mat_sto){
   }
   return(prod(mat_sto[ind]))
 }
+
+interaction_matrix_ill <- function(num, stren, conne, epsilon, threshold = 0) {
+  inte <- interaction_matrix_random(num, stren, conne)
+  new_col <- floor(num/2) + 1
+  #inte[new_col,1] <- (max(inte[new_col,1], threshold))
+  factor <- (-1)/inte[new_col,1]
+  inte[,new_col] <- factor*inte[,1] + epsilon * rnorm(num)
+  inte[new_col,new_col] <- -1
+  return(inte)
+}
+
+#nolint end
