@@ -104,9 +104,6 @@ for (s in 2:(num - 1)) {
 }
 
 
-
-
-
 # Generate the matrixes and their norm form
 matH <- matH + matT + matD
 

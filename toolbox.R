@@ -3,6 +3,7 @@ library(tidyverse)
 library(mvtnorm)
 library(mgcv)
 library(binaryLogic)
+#library(feaoverlap) use code files that are esaier to debug
 source("overlap.R")
 
 ##------------ Original funcs ------------

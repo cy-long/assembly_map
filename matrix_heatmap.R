@@ -7,8 +7,8 @@ library(MetBrewer)
 mat_heat_1 <- (matL- matR)/(matL+matR)/2
 mat_heat_2 <- pmax(matL, matR)/matO
 
-mat_heat <- mat_heat_2
-c_ratio <- 1
+mat_heat <- mat_heat_1
+c_ratio <- 0
 
 # mat_heat <- log(mat_heat_2,10)
 # c_ratio <- 0
@@ -46,4 +46,5 @@ ggplot(data = molten_J, aes(x = column, y = row, fill = value)) +
         #axis.ticks.y = element_blank()
         #title = element_text("Test")
   )
+
 #nolint end

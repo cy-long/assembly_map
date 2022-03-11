@@ -1,8 +1,9 @@
 # nolint start
-# Test if feasoveralp library works well in the assembly codes
+# Test if feasoveralp library works well in the assembly process
 rm(list = ls())
 
-source("toolbox.R") #Remember to exclude all the conflicting functions
+source("toolbox.R")
+#library(feaoverlap)
 source("overlap.R")
 
 # ---- Initialize ----
@@ -23,14 +24,14 @@ for (s in 1:num) {
   }
 }
 
-# matL and matR computes ADO in two different orders
+# matL & matR computes ADO in two different orders
 # matO computes min of original Omgea values
 matL <- matrix(0, ncol = 2 ^ num, nrow = 2 ^ num)
 matR <- matrix(0, ncol = 2 ^ num, nrow = 2 ^ num)
 matO <- matrix(0, ncol = 2 ^ num, nrow = 2 ^ num)
 
 # Compute transitional probabilities
-for (s in 2:(num - 1)) {
+for (s in 1:(num - 1)) {
   targ1 <- sub_coms[[s]]
   
   for (i in 1:choose(num, s)) {
@@ -41,8 +42,8 @@ for (s in 2:(num - 1)) {
       targ2 <- sub_coms[[k]]
       targ3 <- extend_communities(ori, num, k-s)
       
-      # currently works only for >= 3 species 
-      if (s >= 3){
+      # currently works only for >= 2 species 
+      if (s >= 2){
         for (j in (1:ncol(targ1))[-i]) {
           targ_mat <- A[targ1[, j], targ1[, j]]
           matL[t[s, i], t[s, j]] <- calculate_omega_overlap(ori_mat, targ_mat)
@@ -65,4 +66,6 @@ for (s in 2:(num - 1)) {
   }
 }
 
-#nolint end
+# Visualize in matrix_heatmap.R
+
+# nolint end
