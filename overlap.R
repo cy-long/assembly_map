@@ -33,7 +33,7 @@ calculate_omega <- function(vertex, nsamples = 100) {
     num <- nrow(vertex)
     vertex <- generate_span_vectors(vertex)
   
-    #set.seed(1010)
+    set.seed(1010)
     vertex <- cbind(
       vertex,
       vertex %*% t(abs(runif_on_sphere(n = nsamples, d = ncol(vertex), r = 1)))

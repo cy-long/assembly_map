@@ -37,6 +37,16 @@ for (s in 1:(num - 1)) {
   for (i in 1:choose(num, s)) {
     ori <- sub_coms[[s]][, i]
     ori_mat <- A[ori, ori]
+    matO[t[s, i],t[s, i]] <- calculate_omega(ori_mat)
+    
+    if (s == 1) {
+      matL[t[s, i], t[s, i]] <- NaN
+      matR[t[s, i], t[s, i]] <- NaN
+    }
+    else {
+      matL[t[s, i], t[s, i]] <- calculate_omega_overlap(ori_mat, ori_mat)
+      matR[t[s, i], t[s, i]] <- calculate_omega_overlap(ori_mat, ori_mat)
+    }
     
     for (k in (s + 1):num){
       targ2 <- sub_coms[[k]]
