@@ -1,8 +1,8 @@
 # nolint start
 # This is a demonstration code showing how overlap could behave with nearly singular matrices
 
-#library(feasoverlap)
-source("overlap.R")
+source("toolbox.R") # feaoverlap pkg/source included
+# source("wrapper.R") # change defaults to raw omega if using feaoverlap
 
 interaction_matrix_ill <- function(num = 5, stren = 2, conne = 0.9, epsilon = 10^(-5), threshold = 0.001) {
   inte <- interaction_matrix_random(num, stren, conne)

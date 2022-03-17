@@ -2,9 +2,8 @@
 # Test if feasoveralp library works well in the assembly process
 rm(list = ls())
 
-source("toolbox.R")
-#library(feaoverlap)
-source("overlap.R")
+source("toolbox.R") # feaoverlap pkg/source included
+# source("wrapper.R") # change defaults to raw omega if using feaoverlap
 
 # ---- Initialize ----
 num <- 5; stren <- 1; conne <- 0.5

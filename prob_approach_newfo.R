@@ -2,22 +2,19 @@
 # Test if feasoveralp library works well in the assembly codes
 
 rm(list = ls())
-source("toolbox.R")
-source("overlap.R")
 library(deSolve)
 library(igraph)
+source("toolbox.R") # feaoverlap pkg/source included
+# source("wrapper.R") # change defaults to raw omega if using feaoverlap
 
-
-# ---- Initialize ----
+# ------ Initialize ------
 num <- 4; stren <- 1; conne <- 0.5
-order <- 1
-
-
-#| A <- generate_Interaction_matrix(num, stren, conne)
-#A <- as.matrix(read.table(paste("invivo.txt")))
 A <- interaction_matrix_random(num, stren, conne)
 
-# ---- Create the list of sub-communities ----
+# A <- as.matrix(read.table("data/Friedman_Matrix.csv",sep=","))
+# num <- ncol(A)
+
+# ------ Create the list of sub-communities ------
 ##>all subcmmunities of the same species number (defined as a group) is stored in one combn matrix
 ##>all combn matrix is stored in one list
 sub_coms = list()
@@ -25,7 +22,7 @@ for (s in 1:num) {
   sub_coms[[s]] <- combn(num, s)
 }
 
-# ---- Compute transition possibilities via feasibility----
+# ----- Compute transition possibilities via feasibility -----
 # Create the transition matrixes (T,D,H is forward, backward and bidirectional matrix respectively)
 matT <- matrix(0, ncol = 2 ^ num, nrow = 2 ^ num)
 matD <- matrix(0, ncol = 2 ^ num, nrow = 2 ^ num)
@@ -53,18 +50,13 @@ omega_node <- c(0.5, rep(0, 2^num-1))
 for (s in 1:num){
   for (i in 1:choose(num, s)){
     ori <- sub_coms[[s]][, i]
-    #| n_omega_node[t[s,i]] <- Omega(A[ori, ori])^(1/s)
-    #| omega_node[t[s,i]] <- Omega(A[ori, ori])
-    
-    n_omega_node[t[s,i]] <- calculate_omega(A[ori, ori])^(1/s)
-    omega_node[t[s,i]] <- calculate_omega(A[ori, ori])
+    n_omega_node[t[s,i]]  <- calculate_omega(A[ori, ori], FALSE)
+    omega_node[t[s,i]]    <- calculate_omega(A[ori, ori], TRUE)
   }
 }
 
-
 # Compute transitional probabilities
-#| for (s in 1:(num - 1)) {
-for (s in 2:(num - 1)) {
+for (s in 1:(num - 1)) {
   targ1 <- sub_coms[[s]]
   
   for (i in 1:choose(num, s)) {
@@ -75,11 +67,9 @@ for (s in 2:(num - 1)) {
       targ2 <- sub_coms[[k]]
       targ3 <- extend_communities(ori, num, k-s)
       
-      #|if (s >= 2){
-      if (s >= 3) {
+      if (s >= 2) {
         for (j in (1:ncol(targ1))[-i]) {
           targ_mat <- A[targ1[, j], targ1[, j]]
-          #| matH[t[s, i], t[s, j]] <- Omega_overlap(ori_mat, targ_mat) / Omega(ori_mat)
           if (order == 1){
             matH[t[s, i], t[s, j]] <- calculate_omega_overlap(ori_mat, targ_mat) /calculate_omega(ori_mat)
           } else {
@@ -94,7 +84,7 @@ for (s in 2:(num - 1)) {
           targ_mat <- A[targ2[, j], targ2[, j]]
           
           print(c(s,i,k,j))
-          Omega_ij <- Omega_overlap_ext(ori_mat, targ_mat, ori, targ2[, j], order)
+          Omega_ij <- Omega_overlap_ext(ori_mat, targ_mat, ori, targ2[, j])
           matT[t[s, i], t[k, j]] <- Omega_ij / calculate_omega(ori_mat)
           matD[t[k ,j], t[s, i]] <- Omega_ij / calculate_omega(targ_mat)
         }
@@ -103,7 +93,7 @@ for (s in 2:(num - 1)) {
   }
 }
 
-
+# ----- Operations on the matrices -----
 # Generate the matrixes and their norm form
 matH <- matH + matT + matD
 
@@ -118,7 +108,7 @@ diag(matD_norm) <- omega_node
 diag(matH_norm) <- omega_node
 
 
-# ---- Markov process and information analysis ----
+# ------ Markov process and information analysis ------
 mat_ent <- matH_norm
 #>NA in Omega and thus in Trans needs to be fixed
 mat_ent[is.na(mat_ent)] <- 0
@@ -165,7 +155,7 @@ for (i in 1:num){
 }
 #Pr
 
-# ----  pathwise probabilities ----
+# ------  pathwise probabilities ------
 # choose the stochastic matrix
 mat_sto <- matH_norm
 
@@ -226,7 +216,7 @@ boxplot(steps_nlog_probs,
         ylab = "log(probs)",
         main = "Normalized prob.dist. of assembly steps")
 
-# ---- Visualize ----------
+# ----- Visualize -----
 threshold <- 0
 mat_disp <- matH_norm
 

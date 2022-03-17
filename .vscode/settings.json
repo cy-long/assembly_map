@@ -9,7 +9,8 @@
         "**/.Rproj.user": true,
         ".RData": true,
         ".Rhistory": true,
-        "**/*.Rproj": true
+        "**/*.Rproj": true,
+        "README.md": true
     },
-    "explorerExclude.backup": null
+    "explorerExclude.backup": {}
 }
