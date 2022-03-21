@@ -4,12 +4,12 @@ library(mvtnorm)
 library(mgcv)
 library(binaryLogic)
 
-#library(feaoverlap) use code files that are esaier to debug
-library(dplyr)
-library(geometry)
-library(uniformly)
-library(pracma)
-source("overlap.R")
+library(feasoverlap) #use code files that are esaier to debug
+# library(dplyr)
+# library(geometry)
+# library(uniformly)
+# library(pracma)
+# source("overlap.R")
 
 
 # function that convert numeric vector to strings
@@ -34,8 +34,7 @@ convert2sets <- function(str) {
 # output: volume_overlap = the normalized feasibility of the intersection region
 Omega_overlap_ext <- function(A, B, comp_A, comp_B, order = 1) {
   if (all(is.element(comp_A, comp_B))) {
-    
-    #create a location vector to store indexes where insertion happens
+    # create a location vector to store indexes where insertion happens
     loc <- c(rep(0, length((comp_B))))
     for (i in 1:length(comp_B)) {
       if(!is.element(comp_B[i], comp_A)) {
@@ -43,7 +42,7 @@ Omega_overlap_ext <- function(A, B, comp_A, comp_B, order = 1) {
       }
     }
     
-    #create a matrix of all possible diagonal combinations of +-
+    # create a matrix of all possible diagonal combinations of +-
     generate_diag_string <- function(N){
       record <- matrix(0, 2^N, N)
       for (i in 1:(2^N-1)){
@@ -54,25 +53,26 @@ Omega_overlap_ext <- function(A, B, comp_A, comp_B, order = 1) {
     }
     diag_mat <- generate_diag_string(sum(loc))
     
-    #compute Omega_overlap
-    #Omega_ext <- 0
-    Omega_ext <- c(rep(0.001, (2 ^ sum(loc))))
+    # compute Omega_overlap
+    Omega_overlap_values <- c(rep(0, (2 ^ sum(loc))))
+    if(length(loc) == 1) return(1/2)
     for (i in 1:(2 ^ sum(loc))){
       A_ext <- matrix_scatter(A, loc, diag_mat[i, ])
-      #|
       if(order == 1) {
-        Omega_ext[i] = calculate_omega_overlap(A_ext, B, raw = TRUE)
+        Omega_overlap_values[i] = calculate_omega_overlap(A_ext, B, raw = TRUE)
+      } else {
+        Omega_overlap_values[i] = calculate_omega_overlap(B, A_ext, raw = TRUE)
       }
-      else Omega_ext[i] = calculate_omega_overlap(B, A_ext, raw = TRUE)
     }
-    return(sum(Omega_ext))
+    return(sum(Omega_overlap_values))
     
   } else if (all(is.element(comp_B, comp_A))) {
     Omega_overlap_ext(B, A, comp_B, comp_A) #change the variations and do recursion
   } else {
-    warning("connecting two sub-communities that are not subset of each other")
+    warning("overlapping two sub-communities that are not subset of each other")
   }
 }
+
 
 # function that rearrange matrix elements based on a control vector
 # input: mat = one interaction matrix, usually at a lower dimension;
@@ -86,9 +86,10 @@ matrix_scatter <- function(mat, loc, apnd_diag) {
   } else {
     n_mat <- ncol(mat)
   }
+
+  #sum all movement steps needed to insert the new species
   mov <- c(rep(0, n_mat))
   j <- 0
-  #sum all movement steps needed to insert the new species
   for (i in 1:length(loc)) {
     if(loc[i] == 0) {
       j <- j + 1
@@ -99,15 +100,18 @@ matrix_scatter <- function(mat, loc, apnd_diag) {
     warning("matrix_scatter: discrepancy between ncol(mat) and length(loc)")
   }
   
-  mat_ext <- matrix(0, ncol = length(loc), nrow = length(loc))
   # scatter the original elements
+  mat_ext <- matrix(0, ncol = length(loc), nrow = length(loc))
   if(n_mat > 1){
     for (i in 1:n_mat) {
       for (j in 1:n_mat) {
         mat_ext[i+mov[i], j+mov[j]] <- mat[i,j]
       }
     }
-  } else {mat_ext[1+mov[1], 1+mov[1]] <- mat}
+  } else if (n_mat == 1) {
+    mat_ext[1+mov[1], 1+mov[1]] <- mat
+  }
+
   # set new diagonal element
   ##>for other modification policy, rewrite this part
   d <- 1
@@ -154,7 +158,7 @@ is.vec_in_mat <- function(vec,mat){
 # input: mat = the original matrix
 # output: the normalized one, with each row sum equals to one
 norm_row_sum <- function(mat){
-  t(apply(mat,1,function(x) x/sum(x)))
+  t(apply(mat,1,function(x) x/sum(x, na.rm = TRUE)))
 }
 
 # function that returns the cartesian product from sets (filter zero elements)

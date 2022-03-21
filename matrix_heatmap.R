@@ -4,12 +4,12 @@ library(viridis)
 library(reshape2)
 library(MetBrewer)
 
-mat_heat_1 <- (matL- matR)/((matL+matR)/2)
-mat_heat_2 <- pmax(matL, matR)/matO
-mat_heat_3 <- matO
+# mat_heat_1 <- (matL- matR)/((matL+matR)/2)
+# mat_heat_2 <- pmax(matL, matR)/matO
+# mat_heat_3 <- matO
 
-mat_heat <- mat_heat_2
-c_ratio <- 1
+mat_heat <- Overlap
+c_ratio <- 0.2
 
 # Specify row/col names for transition matrix
 names <- c("0")
@@ -28,9 +28,9 @@ names(molten_J) <- c("row", "column", "value")
 ggplot(data = molten_J, aes(x = column, y = row, fill = value)) + 
   geom_tile() +
   coord_equal() +
-  scale_fill_gradient2(low = met.brewer("Hiroshige", n = 100)[1], mid = "#FFFFFF", 
-                       high = met.brewer("Hiroshige", n = 100)[80], midpoint = c_ratio, 
-                       limits = c(min(mat_heat),max(mat_heat)), na.value = "grey97") +
+  scale_fill_gradient2(
+    low = met.brewer("Hiroshige", n = 100)[1], mid = "#FFFFFF", high = met.brewer("Hiroshige", n = 100)[80], midpoint = c_ratio, limits = c(min(mat_heat),max(mat_heat)), na.value = "grey100"
+    ) +
   scale_y_discrete(limits = rev(levels(molten_J$row)), expand = c(0, 0)) +
   scale_x_discrete(position = "top", expand = c(0, 0)) +
   ylab("") +

@@ -1,7 +1,7 @@
 # nolint start
 # Test if the extened 2d code works well to compute overlap
 source("toolbox.R") # feaoverlap pkg/source included
-# source("wrapper.R") # change defaults to raw omega if using feaoverlap
+source("wrapper.R") # change defaults to raw omega if using feaoverlap
 
 # Use brute-force method to compute omega_overlap
 sampling_omega_overlap <- function(A,B,nsample = 10^5) {

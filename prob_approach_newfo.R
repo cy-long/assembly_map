@@ -5,10 +5,11 @@ rm(list = ls())
 library(deSolve)
 library(igraph)
 source("toolbox.R") # feaoverlap pkg/source included
-# source("wrapper.R") # change defaults to raw omega if using feaoverlap
+source("wrapper.R") # change defaults to raw omega if using feaoverlap
 
 # ------ Initialize ------
-num <- 4; stren <- 1; conne <- 0.5
+num <- 4; stren <- 1; conne <- 0.5; order <- 1
+set.seed(2035)
 A <- interaction_matrix_random(num, stren, conne)
 
 # A <- as.matrix(read.table("data/Friedman_Matrix.csv",sep=","))
@@ -24,9 +25,9 @@ for (s in 1:num) {
 
 # ----- Compute transition possibilities via feasibility -----
 # Create the transition matrixes (T,D,H is forward, backward and bidirectional matrix respectively)
-matT <- matrix(0, ncol = 2 ^ num, nrow = 2 ^ num)
-matD <- matrix(0, ncol = 2 ^ num, nrow = 2 ^ num)
-matH <- matrix(0, ncol = 2 ^ num, nrow = 2 ^ num)
+matT <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
+matD <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
+matH <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
 
 ##>For every node, compute all the possibilities (omega_overlap for different dim),
 ##>normalize again for each row?
@@ -39,73 +40,72 @@ for (s in 1:num) {
   }
 }
 
-##>just randomly set to 1/Z, for we have no prior knowledge on them
-matT[1, 2:(2 ^ num)] <- 1/(2 ^ num)
-matD[2:(2 ^ num), 1] <- 1/(2 ^ num)
-
 # Compute normalized & raw omega for each node
-n_omega_node <- c(0.5, rep(0, 2^num-1))
-omega_node <- c(0.5, rep(0, 2^num-1))
+n_omega_node <- c(rep(0, 2^num))
+r_omega_node <- c(rep(0, 2^num))
 
 for (s in 1:num){
   for (i in 1:choose(num, s)){
     ori <- sub_coms[[s]][, i]
-    n_omega_node[t[s,i]]  <- calculate_omega(A[ori, ori], FALSE)
-    omega_node[t[s,i]]    <- calculate_omega(A[ori, ori], TRUE)
+    n_omega_node[t[s,i]] <- calculate_omega(A[ori, ori], FALSE)
+    r_omega_node[t[s,i]] <- calculate_omega(A[ori, ori], TRUE)
   }
 }
 
 # Compute transitional probabilities
-for (s in 1:(num - 1)) {
-  targ1 <- sub_coms[[s]]
-  
+Overlap <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
+overlap <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
+for (s in 0:(num - 1)) {
   for (i in 1:choose(num, s)) {
-    ori <- sub_coms[[s]][, i]
+    if (s == 0){
+      ori <- NULL
+    } else {
+      ori_layer <- sub_coms[[s]]
+      ori <- ori_layer[, i]
+    }
     ori_mat <- A[ori, ori]
-    
-    for (k in (s + 1):num){
-      targ2 <- sub_coms[[k]]
-      targ3 <- extend_communities(ori, num, k-s)
-      
-      if (s >= 2) {
-        for (j in (1:ncol(targ1))[-i]) {
-          targ_mat <- A[targ1[, j], targ1[, j]]
-          if (order == 1){
-            matH[t[s, i], t[s, j]] <- calculate_omega_overlap(ori_mat, targ_mat) /calculate_omega(ori_mat)
-          } else {
-            matH[t[s, i], t[s, j]] <- calculate_omega_overlap(targ_mat, ori_mat) /calculate_omega(ori_mat)
-          }
-          
-        }
-      }
-      for (j in 1:ncol(targ2)) {
+
+    for (p in (s + 1):num){
+      targ_layer <- sub_coms[[p]]
+
+      for (j in 1:ncol(targ_layer)) {
+        targ <- targ_layer[, j]
+        targ_mat <- A[targ, targ]
+
         #filter those that completely have ori as their subset
-        if(is.vec_in_mat(targ2[, j], targ3)) {
-          targ_mat <- A[targ2[, j], targ2[, j]]
-          
-          print(c(s,i,k,j))
-          Omega_ij <- Omega_overlap_ext(ori_mat, targ_mat, ori, targ2[, j])
-          matT[t[s, i], t[k, j]] <- Omega_ij / calculate_omega(ori_mat)
-          matD[t[k ,j], t[s, i]] <- Omega_ij / calculate_omega(targ_mat)
+        if(is.vec_in_mat(targ, extend_communities(ori, num, p-s))) {
+          Overlap_value <- Omega_overlap_ext(ori_mat, targ_mat, ori, targ)
+          if(s == 0){
+            matT[1, t[p, j]] <- Overlap_value; matD[t[p, j], 1] <- Overlap_value
+            matH[1, t[p, j]] = matH[t[p, j], 1] <- Overlap_value
+            Overlap[1, t[p, j]] <- Overlap_value
+            overlap[1, t[p, j]] <- Overlap_value^(1/length(targ))
+          } else {
+            matT[t[s, i], t[p, j]] <- Overlap_value; matD[t[p, j], t[s, i]] <- Overlap_value
+            matH[t[s, i], t[p, j]] = matH[t[p, j], t[s, i]] <- Overlap_value
+            Overlap[t[s, i], t[p, j]] <- Overlap_value
+            overlap[t[s, i], t[p, j]] <- Overlap_value^(1/length(targ))
+          }
+          print(c(s,i,p,j))
         }
       }
     }
   }
 }
 
+
 # ----- Operations on the matrices -----
 # Generate the matrixes and their norm form
-matH <- matH + matT + matD
+markov_norm <- function(mat, weights){
+  mat_markov <- norm_row_sum(mat)
+  mat <- (1-weights) * mat
+  diag(mat) <- weights
+  return(mat_markov)
+}
 
-matT_norm <- norm_row_sum(matT)
-matD_norm <- norm_row_sum(matD)
-matH_norm <- norm_row_sum(matH)
-matT_norm <- (1-omega_node)*matT_norm
-matD_norm <- (1-omega_node)*matD_norm
-matH_norm <- (1-omega_node)*matH_norm
-diag(matT_norm) <- omega_node
-diag(matD_norm) <- omega_node
-diag(matH_norm) <- omega_node
+matT_norm <- markov_norm(matT,r_omega_node)
+matD_norm <- markov_norm(matD,r_omega_node)
+matH_norm <- markov_norm(matH,r_omega_node)
 
 
 # ------ Markov process and information analysis ------
@@ -123,7 +123,6 @@ Stat_dist <- function(Trans){
   return(vec_w)
 }
 sd <- as.numeric(Stat_dist(mat_ent))
-
 
 # Entropy
 Entropy <- function(Trans){
@@ -154,6 +153,68 @@ for (i in 1:num){
   }
 }
 #Pr
+
+# ----- Visualize -----
+threshold <- 0
+mat_disp <- matH_norm
+
+# Specify row/col names for transition matrix
+names <- c("0")
+for (s in 1:num) {
+  names <- c(names, c(apply(sub_coms[[s]], 2, convert2names)))
+}
+colnames(mat_disp) = rownames(mat_disp) = names
+
+# Generate the adjacency matrix with the threshold
+set_conne <- function(value, threshold){
+  if(!is.na(value) && value>threshold){
+    return(1)
+  }else{
+    return(0)
+  }
+}
+mat_adj <- apply(mat_disp, c(1,2), set_conne, threshold)
+
+# Get the value of transition possibility to display
+value = c()
+for (i in 1:nrow(mat_adj)){
+  for (j in 1:ncol(mat_adj)){
+    if(mat_adj[i,j] != 0){
+      value = c(value, mat_disp[i,j])
+    }
+  }
+}
+
+# Set the grid to place nodes
+grid <- matrix(0, nrow= 2^num, ncol = 2)
+l <- 2
+for (s in 1:num) {
+  for (i in 1:choose(num,s)) {
+    grid[l,1] <- s
+    grid[l,2] <- (choose(num,s)-1)/2 -(i - 1)
+    l <- l + 1
+  }
+}
+
+# Display the graph
+diag(mat_adj) <- 0
+# Display the graph
+palf <- colorRampPalette(c("dodgerblue","darkorange"))
+pal1 <- heat.colors(length(n_omega_node), alpha=1) 
+pal2 <- palf(length(n_omega_node))
+r <- rank(n_omega_node)
+network <- graph_from_adjacency_matrix(mat_adj)
+
+plot(network,
+     layout = grid,
+     edge.arrow.size = 0.4,
+     edge.width = 3 * value / max(value),
+     vertex.label.color = "black",
+     vertex.frame.color = "black",
+     vertex.color = pal2[r],
+     #vertex.size = 30 * r_omega_node / max(r_omega_node)
+     vertex.size = 30 * (sd) / max(sd)
+)
 
 # ------  pathwise probabilities ------
 # choose the stochastic matrix
@@ -215,66 +276,5 @@ boxplot(steps_nlog_probs,
         xlab = "middle_steps",
         ylab = "log(probs)",
         main = "Normalized prob.dist. of assembly steps")
-
-# ----- Visualize -----
-threshold <- 0
-mat_disp <- matH_norm
-
-# Specify row/col names for transition matrix
-names <- c("0")
-for (s in 1:num) {
-  names <- c(names, c(apply(sub_coms[[s]], 2, convert2names)))
-}
-colnames(mat_disp) = rownames(mat_disp) = names
-
-# Generate the adjacency matrix with the threshold
-set_conne <- function(value, threshold){
-  if(!is.na(value) && value>threshold){
-    return(1)
-  }else{
-    return(0)
-  }
-}
-mat_adj <- apply(mat_disp, c(1,2), set_conne, threshold)
-
-# Get the value of transition possibility to display
-value = c()
-for (i in 1:nrow(mat_adj)){
-  for (j in 1:ncol(mat_adj)){
-    if(mat_adj[i,j] != 0){
-      value = c(value, mat_disp[i,j])
-    }
-  }
-}
-
-# Set the grid to place nodes
-grid <- matrix(0, nrow= 2^num, ncol = 2)
-l <- 2
-for (s in 1:num) {
-  for (i in 1:choose(num,s)) {
-    grid[l,1] <- s
-    grid[l,2] <- (choose(num,s)-1)/2 -(i - 1)
-    l <- l + 1
-  }
-}
-
-# Display the graph
-diag(mat_adj) <- 0
-# Display the graph
-palf <- colorRampPalette(c("dodgerblue","darkorange"))
-pal1 <- heat.colors(length(n_omega_node), alpha=1) 
-pal2 <- palf(length(n_omega_node))
-r <- rank(n_omega_node)
-network <- graph_from_adjacency_matrix(mat_adj)
-plot(network,
-     layout = grid,
-     edge.arrow.size = 0.4,
-     edge.width = 3 * value / max(value),
-     vertex.label.color = "black",
-     vertex.frame.color = "black",
-     vertex.color = pal2[r],
-     #vertex.size = 30 * omega_node / max(omega_node)
-     vertex.size = 30 * (sd) / max(sd)
-)
 
 # nolint end
