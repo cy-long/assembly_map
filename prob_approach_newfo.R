@@ -8,8 +8,8 @@ source("toolbox.R") # feaoverlap pkg/source included
 source("wrapper.R") # change defaults to raw omega if using feaoverlap
 
 # ------ Initialize ------
-num <- 4; stren <- 1; conne <- 0.5; order <- 1
-set.seed(2035)
+num <- 4; stren <- 0.1; conne <- 0.9; order <- 1
+set.seed(3000)
 A <- interaction_matrix_random(num, stren, conne)
 
 # A <- as.matrix(read.table("data/Friedman_Matrix.csv",sep=","))
@@ -44,11 +44,9 @@ matH <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
 ##>For every node, compute all the possibilities (omega_overlap for different dim),
 ##>normalize again for each row?
 
-
-
 # Compute normalized & raw omega for each node
-n_omega_node <- c(rep(0, 2^num))
-r_omega_node <- c(rep(0, 2^num))
+n_omega_node <- c(0.5, rep(0, 2^num-1))
+r_omega_node <- c(0.5, rep(0, 2^num-1))
 
 for (s in 1:num){
   for (i in 1:choose(num, s)){
@@ -102,6 +100,14 @@ for (s in 0:(num - 1)) {
     }
   }
 }
+
+prob_path(c(1,2,6),r_omega_node,Overlap,"r")
+prob_path(c(1,2,6),r_omega_node,Overlap,"e")
+prob_path(c(1,2,6),r_omega_node,Overlap,"s")
+
+
+
+
 
 # ----- Operations on the matrices -----
 # Generate the matrixes and their norm form
@@ -230,14 +236,18 @@ plot(network,
 ti <- 1; tf <- 16
 paths <- find_path(ti, tf)
 
+
+
+
 # compute pathwise probability from Markov chain
-entire_pr <- data.frame(
-  "n_step" = c(0),
-  "n_path" = c(1),
-  "random_pr" = c(0)
-  "environ_pr" = c(0)
-  "species_pr" = c(0)
+entire_pr <- tibble(
+  n_step = c(1),
+  n_path = c(1),
+  random_pr = c(1),
+  environ_pr = c(1),
+  species_pr = c(1)
 )
+entire_pr %>% add_row(n_step=1,n_path=2,random_pr=3,environ_pr=3,species_pr=4)
 
 
 for (k in 1:(num-1)){

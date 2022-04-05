@@ -256,17 +256,33 @@ find_path <- function(ti, tf){
   return(paths)
 }
 
-
 # function that computes pathwise probability of specified path
 # input: path = nodes of specified path, vector type; mat_sto = stochastic matrix
 # output: pathwise probability (the product of conditional probabilities) 
-prob_path <- function(path, mat_sto){
-  path <- c(1, path, 2 ^ num)
-  ind <- matrix(0,nrow = (length(path) - 1), ncol = 2)
-  for(i in 1:(length(path) - 1)){
-    ind[i,] <- c(path[i],path[i+1])
+prob_path <- function(path, nodes, overlaps, method){
+  ti <- path[1]
+  tf <- path[length(path)]
+  ts <- 2^num # May be specified in params
+  inds <- matrix(0, nrow = (length(path) - 1), ncol = 2)
+
+  if(method == "r"){
+    prob <- prod(nodes[path])
   }
-  return(prod(mat_sto[ind]))
+  else if (method == "e"){
+    # for(i in 1:(length(path))){
+    #   inds[i,] <- c(path[i],ts)
+    # }
+    prob <- prod(overlaps[path,ts])/((nodes[ts])^(length(path)))
+  }
+  else if (method == "s"){
+    for(i in 1:(length(path) - 1)){
+      inds[i,] <- c(path[i],path[i+1])
+    }
+    pr_chains <- prod(overlaps[inds])/(prod(nodes[inds[,1]]))
+    pr_init <- nodes[ti]/nodes[ts]
+    prob <- pr_chains * pr_init
+  }
+  return(prob)
 }
 
 interaction_matrix_ill <- function(num, stren, conne, epsilon, threshold = 0) {

@@ -5,11 +5,11 @@ library(reshape2)
 library(MetBrewer)
 
 # mat_heat_1 <- (matL- matR)/((matL+matR)/2)
-# mat_heat_2 <- pmax(matL, matR)/matO
+mat_heat_2 <- pmax(matL, matR)/matO
 # mat_heat_3 <- matO
 
-mat_heat <- Overlap
-c_ratio <- 0.2
+mat_heat <- mat_heat_2
+c_ratio <- 1
 
 # Specify row/col names for transition matrix
 names <- c("0")
