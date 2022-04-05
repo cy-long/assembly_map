@@ -163,15 +163,15 @@ norm_row_sum <- function(mat){
 
 # function that returns the cartesian product from sets (filter zero elements)
 # input: mat = matrix whose rows are original sets, using zeros as placeholders
-# output: out = matrix whose rows are possible combinations
+# output: out = matrix whose rows are possible combination()
 cartesian_prod <- function(mat){
   if(is.null(nrow(mat))) {
-    out <- mat[!mat %in% 0]
+    out <- mat[!mat %in% NA]
   }
   else {
     mat_rows <- list()
     for (s in 1:nrow(mat)){
-      mat_rows[[s]] <- mat[s, !mat[s,] %in% 0]
+      mat_rows[[s]] <- mat[s, !mat[s,] %in% NA]
     }
     out <- expand.grid(mat_rows)
     colnames(out) <- NULL

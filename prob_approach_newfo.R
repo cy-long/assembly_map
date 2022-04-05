@@ -22,6 +22,18 @@ sub_coms = list()
 for (s in 1:num) {
   sub_coms[[s]] <- combn(num, s)
 }
+# index transformation
+t_ind <- matrix(NA, nrow = num, ncol = max(choose(num, 1:num)))
+for (s in 1:num) {
+  for (i in 1:choose(num, s)) {
+    t_ind[s,i] <- sum(choose(num,1:s-1)) + i
+  }
+}
+l_ind <- matrix(0, 2^num, 2)
+for (t in 2:nrow(l_ind)){
+  l_ind[t,] <- which(t_ind == t, arr.ind = TRUE)
+}
+
 
 # ----- Compute transition possibilities via feasibility -----
 # Create the transition matrixes (T,D,H is forward, backward and bidirectional matrix respectively)
@@ -32,13 +44,7 @@ matH <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
 ##>For every node, compute all the possibilities (omega_overlap for different dim),
 ##>normalize again for each row?
 
-# index transformation
-t <- matrix(0, nrow = num, ncol = max(choose(num, 1:num)))
-for (s in 1:num) {
-  for (i in 1:choose(num, s)) {
-    t[s,i] <- sum(choose(num,1:s-1)) + i
-  }
-}
+
 
 # Compute normalized & raw omega for each node
 n_omega_node <- c(rep(0, 2^num))
@@ -47,8 +53,8 @@ r_omega_node <- c(rep(0, 2^num))
 for (s in 1:num){
   for (i in 1:choose(num, s)){
     ori <- sub_coms[[s]][, i]
-    n_omega_node[t[s,i]] <- calculate_omega(A[ori, ori], FALSE)
-    r_omega_node[t[s,i]] <- calculate_omega(A[ori, ori], TRUE)
+    n_omega_node[t_ind[s,i]] <- calculate_omega(A[ori, ori], FALSE)
+    r_omega_node[t_ind[s,i]] <- calculate_omega(A[ori, ori], TRUE)
   }
 }
 
@@ -75,16 +81,20 @@ for (s in 0:(num - 1)) {
         #filter those that completely have ori as their subset
         if(is.vec_in_mat(targ, extend_communities(ori, num, p-s))) {
           Overlap_value <- Omega_overlap_ext(ori_mat, targ_mat, ori, targ)
+          ti <- t_ind[s, i]
+          tf <- t_ind[p, j]
           if(s == 0){
-            matT[1, t[p, j]] <- Overlap_value; matD[t[p, j], 1] <- Overlap_value
-            matH[1, t[p, j]] = matH[t[p, j], 1] <- Overlap_value
-            Overlap[1, t[p, j]] <- Overlap_value
-            overlap[1, t[p, j]] <- Overlap_value^(1/length(targ))
+            matT[1, tf] <- Overlap_value
+            matD[tf, 1] <- Overlap_value
+            matH[1, tf] = matH[tf, 1] <- Overlap_value
+            Overlap[1, tf] <- Overlap_value
+            overlap[1, tf] <- Overlap_value^(1/length(targ))
           } else {
-            matT[t[s, i], t[p, j]] <- Overlap_value; matD[t[p, j], t[s, i]] <- Overlap_value
-            matH[t[s, i], t[p, j]] = matH[t[p, j], t[s, i]] <- Overlap_value
-            Overlap[t[s, i], t[p, j]] <- Overlap_value
-            overlap[t[s, i], t[p, j]] <- Overlap_value^(1/length(targ))
+            matT[ti, tf] <- Overlap_value
+            matD[tf, ti] <- Overlap_value
+            matH[ti, tf] = matH[tf, ti] <- Overlap_value
+            Overlap[ti, tf] <- Overlap_value
+            overlap[ti, tf] <- Overlap_value^(1/length(targ))
           }
           print(c(s,i,p,j))
         }
@@ -92,7 +102,6 @@ for (s in 0:(num - 1)) {
     }
   }
 }
-
 
 # ----- Operations on the matrices -----
 # Generate the matrixes and their norm form
@@ -217,26 +226,99 @@ plot(network,
 )
 
 # ------  pathwise probabilities ------
-# choose the stochastic matrix
-mat_sto <- matH_norm
+## package with: t_index: t_ind; starting nodes: t_init; ending nodes: t_final; raw_omega; Overlaps
+
 
 # generate potential paths
-paths <- list()
-for (k in 1:(num-1)){
-  paths_k <- matrix(nrow = 1, ncol = k)
-  for (s in 1:choose((num - 1), k)){
-    t_rows <- combn(1:(num - 1), k)[,s] #select layers
-    paths_k <- rbind(paths_k, cartesian_prod(t[t_rows, ]))
+
+find_path <- function(ti,tj){
+  s <- l_ind[ti,1]; i <- l_ind[ti,2]
+  p <- l_ind[tf,1]; j <- l_ind[tf,2]
+  if (s == 0){
+    set_i <- c()
+  } else {
+    set_i <- sub_coms[[s]][ ,i]
   }
-  paths[[k]] <- paths_k[2:nrow(paths_k), ]
+  set_f <- sub_coms[[p]][ ,j]
+
+  path_filter <- function(paths_raw,ti,tf){
+    comp_of_t <- function(value){
+      if(value == 1){
+        return(NULL)
+      } else {
+        return(sub_coms[[l_ind[value,1]]][,l_ind[value,2]])
+      }
+    }
+    if(is.null(nrow(paths_raw))){
+      paths_filt <- c()
+      for (pa in 1:length(paths_raw)){
+        testpath <- c(ti, paths_raw[pa], tf)
+        pathresult <- c()
+        s1 <- comp_of_t(testpath[1])
+        s2 <- comp_of_t(testpath[2])
+        s3 <- comp_of_t(testpath[3])
+        pathresult <- (all(s1 %in% s2) && all(s2 %in% s3))
+        if(pathresult){
+          paths_filt <- append(paths_filt, paths_raw[pa])
+        }
+      }
+      return(paths_filt)
+    }
+    else{
+      paths_filt <- matrix(NA,nrow = 1, ncol = ncol(paths_raw))
+      for (pa in 1:nrow(paths_raw)){
+        testpath <- c(ti, paths_raw[pa,], tf)
+        pathresult <- c()
+        for (no in 1:(length(testpath)-1)){
+          s1 <- comp_of_t(testpath[no])
+          s2 <- comp_of_t(testpath[no+1])
+          pathresult <- append(pathresult, all(s1 %in% s2))
+        }
+        if(all(pathresult)){
+          paths_filt <- rbind(paths_filt, paths_raw[pa,])
+        }
+      }
+      return(paths_filt[-1,])
+    }
+  }
+
+  paths <- list()
+  distance <- abs(p-s-1)
+
+  for (k in 1:distance){
+    if(k == 1){
+      paths_k <- (ti+1):(tf-1)
+      paths[[k]] <- path_filter(paths_k,ti,tf)
+    }
+    else{
+      paths_k <- matrix(nrow = 1, ncol = k)
+      for (r in 1:choose(distance,k)){
+        t_rows <- combn((s+1):(p-1),k)[,r] #select layers
+        paths_k <- rbind(paths_k, cartesian_prod(t_ind[t_rows, ]))
+      }
+      paths_k <- paths_k[-1,]
+      paths[[k]] <- path_filter(paths_k,ti,tf)
+    }
+  }
+  return(paths)
 }
+
+if(!(all(set_i %in% set_f))){
+  error("Current version only deals with sub-communities")
+} else {
+  find_path(ti, tf)
+}
+
 
 # compute pathwise probability from Markov chain
 entire_probs <- data.frame(
   "n_step" = c(0),
   "n_path" = c(1),
-  "v_prob" = c(mat_sto[1, 2 ^ num])
+  "random_pr" = c(0)
+  "environ_pr" = c(0)
+  "species_pr" = c(0)
 )
+
 
 for (k in 1:(num-1)){
   if(k == 1){
