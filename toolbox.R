@@ -54,17 +54,17 @@ Omega_overlap_ext <- function(A, B, comp_A, comp_B, order = 1) {
     diag_mat <- generate_diag_string(sum(loc))
     
     # compute Omega_overlap
-    Omega_overlap_values <- c(rep(0, (2 ^ sum(loc))))
+    Omega_overlap_ts <- c(rep(0, (2 ^ sum(loc))))
     if(length(loc) == 1) return(1/2)
     for (i in 1:(2 ^ sum(loc))){
       A_ext <- matrix_scatter(A, loc, diag_mat[i, ])
       if(order == 1) {
-        Omega_overlap_values[i] = calculate_omega_overlap(A_ext, B, raw = TRUE)
+        Omega_overlap_ts[i] = calculate_omega_overlap(A_ext, B, raw = TRUE)
       } else {
-        Omega_overlap_values[i] = calculate_omega_overlap(B, A_ext, raw = TRUE)
+        Omega_overlap_ts[i] = calculate_omega_overlap(B, A_ext, raw = TRUE)
       }
     }
-    return(sum(Omega_overlap_values))
+    return(sum(Omega_overlap_ts))
     
   } else if (all(is.element(comp_B, comp_A))) {
     Omega_overlap_ext(B, A, comp_B, comp_A) #change the variations and do recursion
@@ -178,6 +178,84 @@ cartesian_prod <- function(mat){
   }
   return(as.matrix(out))
 }
+
+path_filter <- function(paths_raw,ti,tf){
+  comp_of_t <- function(t){
+    if(t == 1){
+      return(NULL)
+    } else {
+      return(sub_coms[[l_ind[t,1]]][,l_ind[t,2]])
+    }
+  }
+  if(is.null(nrow(paths_raw))){
+    paths_fil <- c()
+    for (pa in 1:length(paths_raw)){
+      testpath <- c(ti, paths_raw[pa], tf)
+      pathresult <- c()
+      s1 <- comp_of_t(testpath[1])
+      s2 <- comp_of_t(testpath[2])
+      s3 <- comp_of_t(testpath[3])
+      pathresult <- (all(s1 %in% s2) && all(s2 %in% s3))
+      if(pathresult){
+        paths_fil <- append(paths_fil, paths_raw[pa])
+      }
+    }
+    return(paths_fil)
+  }
+  else {
+    paths_fil <- matrix(NA,nrow = 1, ncol = ncol(paths_raw))
+    for (pa in 1:nrow(paths_raw)){
+      testpath <- c(ti, paths_raw[pa,], tf)
+      pathresult <- c()
+      for (no in 1:(length(testpath)-1)){
+        s1 <- comp_of_t(testpath[no])
+        s2 <- comp_of_t(testpath[no+1])
+        pathresult <- append(pathresult, all(s1 %in% s2))
+      }
+      if(all(pathresult)){
+        paths_fil <- rbind(paths_fil, paths_raw[pa,])
+      }
+    }
+    return(paths_fil[-1,])
+  }
+}
+
+# generate potential paths
+find_path <- function(ti, tf){
+  s <- l_ind[ti,1]; i <- l_ind[ti,2]
+  p <- l_ind[tf,1]; j <- l_ind[tf,2]
+  
+  if (s == 0){
+    set_i <- c()
+  } else {
+    set_i <- sub_coms[[s]][ ,i]
+  }
+  set_f <- sub_coms[[p]][ ,j]
+
+  if(!(all(set_i %in% set_f))){
+    stop("Current version only deals with sub-communities")
+  }
+
+  paths <- list()
+  distance <- abs(p-s-1)
+
+  for (k in 1:distance){
+    if(k == 1){
+      paths_k <- (ti+1):(tf-1)
+      paths[[k]] <- path_filter(paths_k,ti,tf)
+    } else {
+      paths_k <- matrix(nrow = 1, ncol = k)
+      for (r in 1:choose(distance,k)){
+        t_rows <- combn((s+1):(p-1),k)[,r] #select layers
+        paths_k <- rbind(paths_k, cartesian_prod(t_ind[t_rows, ]))
+      }
+      paths_k <- paths_k[-1,]
+      paths[[k]] <- path_filter(paths_k, ti, tf)
+    }
+  }
+  return(paths)
+}
+
 
 # function that computes pathwise probability of specified path
 # input: path = nodes of specified path, vector type; mat_sto = stochastic matrix

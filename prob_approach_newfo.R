@@ -226,92 +226,12 @@ plot(network,
 )
 
 # ------  pathwise probabilities ------
-## package with: t_index: t_ind; starting nodes: t_init; ending nodes: t_final; raw_omega; Overlaps
-
-
-# generate potential paths
-
-find_path <- function(ti,tj){
-  s <- l_ind[ti,1]; i <- l_ind[ti,2]
-  p <- l_ind[tf,1]; j <- l_ind[tf,2]
-  if (s == 0){
-    set_i <- c()
-  } else {
-    set_i <- sub_coms[[s]][ ,i]
-  }
-  set_f <- sub_coms[[p]][ ,j]
-
-  path_filter <- function(paths_raw,ti,tf){
-    comp_of_t <- function(value){
-      if(value == 1){
-        return(NULL)
-      } else {
-        return(sub_coms[[l_ind[value,1]]][,l_ind[value,2]])
-      }
-    }
-    if(is.null(nrow(paths_raw))){
-      paths_filt <- c()
-      for (pa in 1:length(paths_raw)){
-        testpath <- c(ti, paths_raw[pa], tf)
-        pathresult <- c()
-        s1 <- comp_of_t(testpath[1])
-        s2 <- comp_of_t(testpath[2])
-        s3 <- comp_of_t(testpath[3])
-        pathresult <- (all(s1 %in% s2) && all(s2 %in% s3))
-        if(pathresult){
-          paths_filt <- append(paths_filt, paths_raw[pa])
-        }
-      }
-      return(paths_filt)
-    }
-    else{
-      paths_filt <- matrix(NA,nrow = 1, ncol = ncol(paths_raw))
-      for (pa in 1:nrow(paths_raw)){
-        testpath <- c(ti, paths_raw[pa,], tf)
-        pathresult <- c()
-        for (no in 1:(length(testpath)-1)){
-          s1 <- comp_of_t(testpath[no])
-          s2 <- comp_of_t(testpath[no+1])
-          pathresult <- append(pathresult, all(s1 %in% s2))
-        }
-        if(all(pathresult)){
-          paths_filt <- rbind(paths_filt, paths_raw[pa,])
-        }
-      }
-      return(paths_filt[-1,])
-    }
-  }
-
-  paths <- list()
-  distance <- abs(p-s-1)
-
-  for (k in 1:distance){
-    if(k == 1){
-      paths_k <- (ti+1):(tf-1)
-      paths[[k]] <- path_filter(paths_k,ti,tf)
-    }
-    else{
-      paths_k <- matrix(nrow = 1, ncol = k)
-      for (r in 1:choose(distance,k)){
-        t_rows <- combn((s+1):(p-1),k)[,r] #select layers
-        paths_k <- rbind(paths_k, cartesian_prod(t_ind[t_rows, ]))
-      }
-      paths_k <- paths_k[-1,]
-      paths[[k]] <- path_filter(paths_k,ti,tf)
-    }
-  }
-  return(paths)
-}
-
-if(!(all(set_i %in% set_f))){
-  error("Current version only deals with sub-communities")
-} else {
-  find_path(ti, tf)
-}
-
+# find all paths from ti to tf
+ti <- 1; tf <- 16
+paths <- find_path(ti, tf)
 
 # compute pathwise probability from Markov chain
-entire_probs <- data.frame(
+entire_pr <- data.frame(
   "n_step" = c(0),
   "n_path" = c(1),
   "random_pr" = c(0)
@@ -324,19 +244,19 @@ for (k in 1:(num-1)){
   if(k == 1){
     for (p in 1:length(paths[[k]])){
       prob <- prob_path(paths[[k]][p], mat_sto)
-      entire_probs <- rbind(entire_probs, c(k,p,prob))
+      entire_pr <- rbind(entire_pr, c(k,p,prob))
     }
   }
   else{
     for (p in 1:nrow(paths[[k]])){
       prob <- prob_path(paths[[k]][p,], mat_sto)
-      entire_probs <- rbind(entire_probs, c(k,p,prob))
+      entire_pr <- rbind(entire_pr, c(k,p,prob))
     }
   }
 }
 
 # filtering and visualization
-positive_probs <- entire_probs[(entire_probs$v_prob >= 1e-12), ]
+positive_probs <- entire_pr[(entire_pr$v_prob >= 1e-12), ]
 rownames(positive_probs) <- NULL
 positive_probs
 
@@ -349,14 +269,14 @@ for (k in 1:(num-1)){
   steps_nlog_probs[[as.character(k)]] <- (1/k)*steps_log_probs[[as.character(k)]]
 }
 
-boxplot(steps_log_probs,
-        xlab = "middle_steps",
-        ylab = "log(probs)",
-        main = "Raw prob.dist. of assembly steps")
+# boxplot(steps_log_probs,
+#         xlab = "middle_steps",
+#         ylab = "log(probs)",
+#         main = "Raw prob.dist. of assembly steps")
 
-boxplot(steps_nlog_probs,
-        xlab = "middle_steps",
-        ylab = "log(probs)",
-        main = "Normalized prob.dist. of assembly steps")
+# boxplot(steps_nlog_probs,
+#         xlab = "middle_steps",
+#         ylab = "log(probs)",
+#         main = "Normalized prob.dist. of assembly steps")
 
 # nolint end
