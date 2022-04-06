@@ -4,7 +4,7 @@ library(mvtnorm)
 library(mgcv)
 library(binaryLogic)
 
-library(feasoverlap) #use code files that are esaier to debug
+library(feasoverlap)
 # library(dplyr)
 # library(geometry)
 # library(uniformly)
@@ -260,26 +260,22 @@ find_path <- function(ti, tf){
 # input: path = nodes of specified path, vector type; mat_sto = stochastic matrix
 # output: pathwise probability (the product of conditional probabilities) 
 prob_path <- function(path, nodes, overlaps, method){
-  ti <- path[1]
-  tf <- path[length(path)]
-  ts <- 2^num # May be specified in params
-  inds <- matrix(0, nrow = (length(path) - 1), ncol = 2)
+  ti <- path[1]; tf <- path[length(path)]
+  ts <- ncol(Overlap) # May be specified in params
+  chain <- matrix(0, nrow = (length(path) - 1), ncol = 2)
 
   if(method == "r"){
     prob <- prod(nodes[path])
   }
   else if (method == "e"){
-    # for(i in 1:(length(path))){
-    #   inds[i,] <- c(path[i],ts)
-    # }
     prob <- prod(overlaps[path,ts])/((nodes[ts])^(length(path)))
   }
   else if (method == "s"){
     for(i in 1:(length(path) - 1)){
-      inds[i,] <- c(path[i],path[i+1])
+      chain[i,] <- c(path[i],path[i+1])
     }
-    pr_chains <- prod(overlaps[inds])/(prod(nodes[inds[,1]]))
-    pr_init <- nodes[ti]/nodes[ts]
+    pr_chains <- prod(overlaps[chain])/(prod(nodes[chain[,1]]))
+    pr_init <- overlaps[ti,ts]/nodes[ts]
     prob <- pr_chains * pr_init
   }
   return(prob)

@@ -8,8 +8,8 @@ source("toolbox.R") # feaoverlap pkg/source included
 source("wrapper.R") # change defaults to raw omega if using feaoverlap
 
 # ------ Initialize ------
-num <- 4; stren <- 0.1; conne <- 0.9; order <- 1
-set.seed(3000)
+num <- 4; stren <- 1; conne <- 0.9; order <- 1
+set.seed(319)
 A <- interaction_matrix_random(num, stren, conne)
 
 # A <- as.matrix(read.table("data/Friedman_Matrix.csv",sep=","))
@@ -94,17 +94,16 @@ for (s in 0:(num - 1)) {
             Overlap[ti, tf] <- Overlap_value
             overlap[ti, tf] <- Overlap_value^(1/length(targ))
           }
-          print(c(s,i,p,j))
+          #print(c(s,i,p,j))
         }
       }
     }
   }
 }
 
-prob_path(c(1,2,6),r_omega_node,Overlap,"r")
-prob_path(c(1,2,6),r_omega_node,Overlap,"e")
-prob_path(c(1,2,6),r_omega_node,Overlap,"s")
-
+prob_path(c(1,2,6,12),r_omega_node,Overlap,"r")
+prob_path(c(1,2,6,12),r_omega_node,Overlap,"e")
+prob_path(c(1,2,6,12),r_omega_node,Overlap,"s")
 
 
 

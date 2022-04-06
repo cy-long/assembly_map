@@ -13,5 +13,6 @@
         "README.md": true,
         "prob_approach.R": false
     },
-    "explorerExclude.backup": null
+    "explorerExclude.backup": {},
+    "workbench.panel.defaultLocation": "right"
 }
