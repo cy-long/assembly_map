@@ -1,6 +1,5 @@
 # nolint start
-# Test if feasoveralp library works well in the assembly codes
-
+# The code that performs feasibility analysis of assembly
 rm(list = ls())
 library(deSolve)
 library(igraph)
@@ -8,11 +7,11 @@ source("toolbox.R") # feaoverlap pkg/source included
 source("wrapper.R") # change defaults to raw omega if using feaoverlap
 
 # ------ Initialize ------
-num <- 4; stren <- 1; conne <- 0.9; order <- 1
-set.seed(319)
+num <- 4; stren <- 1; conne <- 1; order <- 1
+set.seed(354)
 A <- interaction_matrix_random(num, stren, conne)
 
-# A <- as.matrix(read.table("data/Friedman_Matrix.csv",sep=","))
+# A <- as.matrix(read.table("data/Gould_Matrix_median_12.csv",sep=","))[1:5,1:5]
 # num <- ncol(A)
 
 # ------ Create the list of sub-communities ------
@@ -22,29 +21,22 @@ sub_coms = list()
 for (s in 1:num) {
   sub_coms[[s]] <- combn(num, s)
 }
-# index transformation
+
 t_ind <- matrix(NA, nrow = num, ncol = max(choose(num, 1:num)))
 for (s in 1:num) {
   for (i in 1:choose(num, s)) {
     t_ind[s,i] <- sum(choose(num,1:s-1)) + i
   }
 }
+
 l_ind <- matrix(0, 2^num, 2)
 for (t in 2:nrow(l_ind)){
   l_ind[t,] <- which(t_ind == t, arr.ind = TRUE)
 }
 
+# ----- Compute raw/norm/overlap omega values ------
 
-# ----- Compute transition possibilities via feasibility -----
-# Create the transition matrixes (T,D,H is forward, backward and bidirectional matrix respectively)
-matT <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
-matD <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
-matH <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
-
-##>For every node, compute all the possibilities (omega_overlap for different dim),
-##>normalize again for each row?
-
-# Compute normalized & raw omega for each node
+# Compute raw/norm omega for each node
 n_omega_node <- c(0.5, rep(0, 2^num-1))
 r_omega_node <- c(0.5, rep(0, 2^num-1))
 
@@ -56,7 +48,10 @@ for (s in 1:num){
   }
 }
 
-# Compute transitional probabilities
+# Compute matrices and omega_overlaps
+matT <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
+matD <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
+matH <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
 Overlap <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
 overlap <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
 for (s in 0:(num - 1)) {
@@ -76,7 +71,7 @@ for (s in 0:(num - 1)) {
         targ <- targ_layer[, j]
         targ_mat <- A[targ, targ]
 
-        #filter those that completely have ori as their subset
+        # filter those that completely have ori as their subset
         if(is.vec_in_mat(targ, extend_communities(ori, num, p-s))) {
           Overlap_value <- Omega_overlap_ext(ori_mat, targ_mat, ori, targ)
           ti <- t_ind[s, i]
@@ -94,18 +89,39 @@ for (s in 0:(num - 1)) {
             Overlap[ti, tf] <- Overlap_value
             overlap[ti, tf] <- Overlap_value^(1/length(targ))
           }
-          #print(c(s,i,p,j))
+          # print(c(s,i,p,j))
         }
       }
     }
   }
 }
-
-prob_path(c(1,2,6,12),r_omega_node,Overlap,"r")
-prob_path(c(1,2,6,12),r_omega_node,Overlap,"e")
-prob_path(c(1,2,6,12),r_omega_node,Overlap,"s")
+diag(Overlap) <- r_omega_node
+diag(overlap) <- n_omega_node
 
 
+# ------  Pathwise probability analysis ------
+# find all paths from ti to tf
+ti <- 1; tf <- 16
+paths <- find_path(ti, tf)
+
+entire_pr <- tibble(
+  n_step = c(0), n_path = c(0),
+  random_pr = c(0), environ_pr = c(0), species_pr = c(0)
+)
+
+#Notice: using normailized values now
+for (k in 1:length(paths)){
+  paths_k <- cbind(ti, paths[[k]], tf)
+  for (p in 1:nrow(paths_k)){
+    rp <- prob_path(paths_k[p,], n_omega_node, overlap, "r")
+    ep <- prob_path(paths_k[p,], n_omega_node, overlap, "e")
+    sp <- prob_path(paths_k[p,], n_omega_node, overlap, "s")
+    # Do some filtering
+    entire_pr <- entire_pr %>% 
+      add_row(n_step=k, n_path=p, random_pr=rp, environ_pr=ep, species_pr=sp)
+  }
+}
+view(entire_pr)
 
 
 # ----- Operations on the matrices -----
@@ -170,7 +186,7 @@ for (i in 1:num){
 
 # ----- Visualize -----
 threshold <- 0
-mat_disp <- matH_norm
+mat_disp <- Overlap
 
 # Specify row/col names for transition matrix
 names <- c("0")
@@ -226,66 +242,10 @@ plot(network,
      vertex.label.color = "black",
      vertex.frame.color = "black",
      vertex.color = pal2[r],
-     #vertex.size = 30 * r_omega_node / max(r_omega_node)
-     vertex.size = 30 * (sd) / max(sd)
+    # vertex.size = 30 * r_omega_node / max(r_omega_node)
+    # vertex.size = 20 * (n_omega_node) / max(n_omega_node)
 )
 
-# ------  pathwise probabilities ------
-# find all paths from ti to tf
-ti <- 1; tf <- 16
-paths <- find_path(ti, tf)
 
-
-
-
-# compute pathwise probability from Markov chain
-entire_pr <- tibble(
-  n_step = c(1),
-  n_path = c(1),
-  random_pr = c(1),
-  environ_pr = c(1),
-  species_pr = c(1)
-)
-entire_pr %>% add_row(n_step=1,n_path=2,random_pr=3,environ_pr=3,species_pr=4)
-
-
-for (k in 1:(num-1)){
-  if(k == 1){
-    for (p in 1:length(paths[[k]])){
-      prob <- prob_path(paths[[k]][p], mat_sto)
-      entire_pr <- rbind(entire_pr, c(k,p,prob))
-    }
-  }
-  else{
-    for (p in 1:nrow(paths[[k]])){
-      prob <- prob_path(paths[[k]][p,], mat_sto)
-      entire_pr <- rbind(entire_pr, c(k,p,prob))
-    }
-  }
-}
-
-# filtering and visualization
-positive_probs <- entire_pr[(entire_pr$v_prob >= 1e-12), ]
-rownames(positive_probs) <- NULL
-positive_probs
-
-steps_log_probs <- list(); steps_nlog_probs <- list()
-
-steps_log_probs[[as.character(0)]] <- log(positive_probs$v_prob[1])
-for (k in 1:(num-1)){
-  steps_log_probs[[as.character(k)]] <-
-    log(positive_probs$v_prob[positive_probs$n_step %in% k])
-  steps_nlog_probs[[as.character(k)]] <- (1/k)*steps_log_probs[[as.character(k)]]
-}
-
-# boxplot(steps_log_probs,
-#         xlab = "middle_steps",
-#         ylab = "log(probs)",
-#         main = "Raw prob.dist. of assembly steps")
-
-# boxplot(steps_nlog_probs,
-#         xlab = "middle_steps",
-#         ylab = "log(probs)",
-#         main = "Normalized prob.dist. of assembly steps")
 
 # nolint end

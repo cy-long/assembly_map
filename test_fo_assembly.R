@@ -1,6 +1,14 @@
 # nolint start
 
-# index transformation
+# num <- 4; stren <- 1; conne <- 0.9; order <- 1
+# set.seed(319)
+# A <- interaction_matrix_random(num, stren, conne)
+
+sub_coms = list()
+for (s in 1:num) {
+  sub_coms[[s]] <- combn(num, s)
+}
+
 t_ind <- matrix(0, nrow = num, ncol = max(choose(num, 1:num)))
 for (s in 1:num) {
   for (i in 1:choose(num, s)) {
@@ -51,9 +59,9 @@ for (s in 1:(num - 1)) {
         if(is.vec_in_mat(targ2[, j], targ3)) {
           targ_mat <- A[targ2[, j], targ2[, j]]
           print(c(s,i,k,j))
-          matL[t_ind[s, i], t[k, j]] <- Omega_overlap_ext(ori_mat, targ_mat, ori, targ2[, j], 1)
-          matR[t_ind[s, i], t[k, j]] <- Omega_overlap_ext(ori_mat, targ_mat, ori, targ2[, j], 2)
-          matO[t_ind[s, i], t[k, j]] <- min(calculate_omega(ori_mat), calculate_omega(targ_mat))
+          matL[t_ind[s, i], t_ind[k, j]] <- Omega_overlap_ext(ori_mat, targ_mat, ori, targ2[, j], 1)
+          matR[t_ind[s, i], t_ind[k, j]] <- Omega_overlap_ext(ori_mat, targ_mat, ori, targ2[, j], 2)
+          matO[t_ind[s, i], t_ind[k, j]] <- min(calculate_omega(ori_mat), calculate_omega(targ_mat))
         }
       }
     }
