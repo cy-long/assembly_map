@@ -1,8 +1,10 @@
 # nolint start
 
-# num <- 4; stren <- 1; conne <- 0.9; order <- 1
-# set.seed(319)
-# A <- interaction_matrix_random(num, stren, conne)
+source("toolbox.R") # feaoverlap pkg/source included
+source("wrapper.R") # change defaults to raw omega if using feaoverlap
+num <- 4; stren <- 1; conne <- 0.5; order <- 1
+set.seed(331)
+A <- interaction_matrix_ill(num, stren, conne)
 
 sub_coms = list()
 for (s in 1:num) {

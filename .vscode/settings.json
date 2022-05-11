@@ -11,8 +11,12 @@
         ".Rhistory": true,
         "**/*.Rproj": true,
         "README.md": true,
-        "prob_approach.R": false
+        "prob_approach.R": false,
+        "**/prob_approach.R": true,
+        "**/cmt.tmp.R": true,
+        "**/.Rprofile": true,
+        "**/.gitignore": true
     },
-    "explorerExclude.backup": {},
+    "explorerExclude.backup": null,
     "workbench.panel.defaultLocation": "right"
 }

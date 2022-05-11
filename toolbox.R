@@ -32,7 +32,7 @@ convert2sets <- function(str) {
 # inputs: A = one interaction matrix, B = another interaction matrix, 
 # comp_A = composition of community A, comp_B = composition of community B
 # output: volume_overlap = the normalized feasibility of the intersection region
-Omega_overlap_ext <- function(A, B, comp_A, comp_B, order = 1) {
+Omega_overlap_ext <- function(A, B, comp_A, comp_B, raw = TRUE, order = 1) {
   if (all(is.element(comp_A, comp_B))) {
     # create a location vector to store indexes where insertion happens
     loc <- c(rep(0, length((comp_B))))
@@ -55,7 +55,7 @@ Omega_overlap_ext <- function(A, B, comp_A, comp_B, order = 1) {
     
     # compute Omega_overlap
     Omega_overlap_ts <- c(rep(0, (2 ^ sum(loc))))
-    if(length(loc) == 1) return(1/2)
+    if (length(loc) == 1) return(1/2)
     for (i in 1:(2 ^ sum(loc))){
       A_ext <- matrix_scatter(A, loc, diag_mat[i, ])
       if(order == 1) {
@@ -64,8 +64,12 @@ Omega_overlap_ext <- function(A, B, comp_A, comp_B, order = 1) {
         Omega_overlap_ts[i] = calculate_omega_overlap(B, A_ext, raw = TRUE)
       }
     }
-    return(sum(Omega_overlap_ts))
     
+    if (raw) {
+      return(sum(Omega_overlap_ts))
+    } else {
+      return(sum(Omega_overlap_ts)^(1/length(comp_B)))
+    } 
   } else if (all(is.element(comp_B, comp_A))) {
     Omega_overlap_ext(B, A, comp_B, comp_A) #change the variations and do recursion
   } else {
@@ -285,5 +289,60 @@ interaction_matrix_ill <- function(num, stren, conne, epsilon, threshold = 0) {
   inte[new_col,new_col] <- -1
   return(inte)
 }
+
+# ----- Compute raw/norm/overlap omega values ------
+# Compute raw/norm omega for each node
+evaluate_nodes <- function(A, raw){
+  A <- as.matrix(A); num <- ncol(A)
+  omega_single<- c(0.5, rep(0, 2^num-1))
+
+  for (s in 1:num){
+    for (i in 1:choose(num, s)){
+      ori <- sub_coms[[s]][, i]
+      omega_single[t_ind[s,i]] <- calculate_omega(A[ori, ori], raw)
+    }
+  }
+  return(omega_single)
+}
+
+
+evaluate_overlaps <- function(A, raw){
+  # Compute matrices and omega_overlaps
+  Overlap <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
+  for (s in 0:(num - 1)) {
+    for (i in 1:choose(num, s)) {
+      if (s == 0){
+        ori <- NULL
+      } else {
+        ori_layer <- sub_coms[[s]]
+        ori <- ori_layer[, i]
+      }
+      ori_mat <- A[ori, ori]
+
+      for (p in (s + 1):num){
+        tar_layer <- sub_coms[[p]]
+        for (j in 1:ncol(tar_layer)) {
+          tar <- tar_layer[, j]
+          tar_mat <- A[tar, tar]
+
+          # filter those that completely have ori as their subset
+          if(is.vec_in_mat(tar, extend_communities(ori, num, p-s))) {
+            Overlap_value <- Omega_overlap_ext(ori_mat, tar_mat, ori, tar, raw)
+            ti <- t_ind[s, i]
+            tf <- t_ind[p, j]
+            if(s == 0){
+              Overlap[1, tf] <- Overlap_value
+            } else {
+              Overlap[ti, tf] <- Overlap_value
+            }
+          }
+        }
+      }
+    }
+  }
+  diag(Overlap) <- evaluate_nodes(A,raw)
+  return(Overlap)
+}
+
 
 #nolint end

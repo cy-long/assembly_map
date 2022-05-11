@@ -1,5 +1,5 @@
 # nolint start
-# The code that performs feasibility analysis of assembly
+# This code generate the assembly map of an ecological community
 rm(list = ls())
 library(deSolve)
 library(igraph)
@@ -14,14 +14,14 @@ A <- interaction_matrix_random(num, stren, conne)
 # A <- as.matrix(read.table("data/Gould_Matrix_median_12.csv",sep=","))[1:5,1:5]
 # num <- ncol(A)
 
-# ------ Create the list of sub-communities ------
-##>all subcmmunities of the same species number (defined as a group) is stored in one combn matrix
-##>all combn matrix is stored in one list
+# ------ Create the list/indices of subcommunities ------
+# Original list: location to composition
 sub_coms = list()
 for (s in 1:num) {
   sub_coms[[s]] <- combn(num, s)
 }
 
+# t_index: location to order
 t_ind <- matrix(NA, nrow = num, ncol = max(choose(num, 1:num)))
 for (s in 1:num) {
   for (i in 1:choose(num, s)) {
@@ -29,74 +29,20 @@ for (s in 1:num) {
   }
 }
 
+# l_index: order to location
 l_ind <- matrix(0, 2^num, 2)
 for (t in 2:nrow(l_ind)){
   l_ind[t,] <- which(t_ind == t, arr.ind = TRUE)
 }
 
 # ----- Compute raw/norm/overlap omega values ------
-
 # Compute raw/norm omega for each node
-n_omega_node <- c(0.5, rep(0, 2^num-1))
-r_omega_node <- c(0.5, rep(0, 2^num-1))
+r_omega_node <- evaluate_nodes(A, TRUE)
+n_omega_node <- evaluate_nodes(A, FALSE)
 
-for (s in 1:num){
-  for (i in 1:choose(num, s)){
-    ori <- sub_coms[[s]][, i]
-    n_omega_node[t_ind[s,i]] <- calculate_omega(A[ori, ori], FALSE)
-    r_omega_node[t_ind[s,i]] <- calculate_omega(A[ori, ori], TRUE)
-  }
-}
-
-# Compute matrices and omega_overlaps
-matT <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
-matD <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
-matH <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
-Overlap <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
-overlap <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
-for (s in 0:(num - 1)) {
-  for (i in 1:choose(num, s)) {
-    if (s == 0){
-      ori <- NULL
-    } else {
-      ori_layer <- sub_coms[[s]]
-      ori <- ori_layer[, i]
-    }
-    ori_mat <- A[ori, ori]
-
-    for (p in (s + 1):num){
-      targ_layer <- sub_coms[[p]]
-
-      for (j in 1:ncol(targ_layer)) {
-        targ <- targ_layer[, j]
-        targ_mat <- A[targ, targ]
-
-        # filter those that completely have ori as their subset
-        if(is.vec_in_mat(targ, extend_communities(ori, num, p-s))) {
-          Overlap_value <- Omega_overlap_ext(ori_mat, targ_mat, ori, targ)
-          ti <- t_ind[s, i]
-          tf <- t_ind[p, j]
-          if(s == 0){
-            matT[1, tf] <- Overlap_value
-            matD[tf, 1] <- Overlap_value
-            matH[1, tf] = matH[tf, 1] <- Overlap_value
-            Overlap[1, tf] <- Overlap_value
-            overlap[1, tf] <- Overlap_value^(1/length(targ))
-          } else {
-            matT[ti, tf] <- Overlap_value
-            matD[tf, ti] <- Overlap_value
-            matH[ti, tf] = matH[tf, ti] <- Overlap_value
-            Overlap[ti, tf] <- Overlap_value
-            overlap[ti, tf] <- Overlap_value^(1/length(targ))
-          }
-          # print(c(s,i,p,j))
-        }
-      }
-    }
-  }
-}
-diag(Overlap) <- r_omega_node
-diag(overlap) <- n_omega_node
+# Compute omega_overlaps between possible nodes
+Overlap <- evaluate_overlaps(A, TRUE)
+overlap <- evaluate_overlaps(A, FALSE)
 
 
 # ------  Pathwise probability analysis ------

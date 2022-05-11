@@ -4,7 +4,7 @@
 source("toolbox.R") # feaoverlap pkg/source included
 source("wrapper.R") # change defaults to raw omega if using feaoverlap
 
-interaction_matrix_ill <- function(num = 5, stren = 2, conne = 0.9, epsilon = 10^(-5), threshold = 0.001) {
+interaction_matrix_ill <- function(num = 4, stren = 2, conne = 0.9, epsilon = 10^(-4), threshold = 0.001) {
   inte <- interaction_matrix_random(num, stren, conne)
   new_col <- floor(num/2) + 1
   inte[new_col,1] <- (max(abs(inte[new_col,1]), threshold)) #set a threshold to avoid zero entry
