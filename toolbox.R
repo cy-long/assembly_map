@@ -6,19 +6,17 @@ library(binaryLogic)
 library(igraph)
 
 # ----- feasoverlap pkg or codefile -----
-library(feasoverlap)
+# library(feasoverlap)
 
-# library(dplyr)
-# library(geometry)
-# library(uniformly)
-# library(pracma)
-# source("overlap.R")
+library(dplyr)
+library(geometry)
+library(uniformly)
+library(pracma)
+source("overlap.R")
 
 # ----- indexing functions ------
 
 # functions that generate indices for the subcommunities
-# input: num = total number of species
-# output: 
 generate_subcoms <- function(num) {
   # Original list: location to composition
   sub_coms = list()
@@ -48,7 +46,7 @@ generate_l_index <- function(num) {
 
 # ----- computational functions -----
 
-# Compute raw/norm omega for each node
+# function that computes raw/norm omega for single communities
 evaluate_solo <- function(A, raw){
   A <- as.matrix(A); num <- ncol(A)
   omega_single<- c(0.5, rep(0, 2^num-1))
@@ -62,6 +60,7 @@ evaluate_solo <- function(A, raw){
   return(omega_single)
 }
 
+# function that computes overlap/extended omega for pairs of communities
 evaluate_dual <- function(A, raw, state){
   Overlap <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
   Exten <- matrix(NA, ncol = 2 ^ num, nrow = 2 ^ num)
@@ -195,7 +194,7 @@ matrix_scatter <- function(mat, loc, apnd_diag) {
   }
 
   # set new diagonal element
-  ##>for other modification policy, rewrite this part
+  #? for other modification methods, rewrite this part
   d <- 1
   for (k in 1:length(loc)) {
     if(loc[k] == 1){
@@ -207,8 +206,8 @@ matrix_scatter <- function(mat, loc, apnd_diag) {
 }
 
 # function that adds one species to a sub-commnutiy
-# inputs: comm = one vector that represents community components, num = total number of species, 
-# augm = adding number of species
+# input: comm = one vector that represents community components, num = total number of species, 
+# input: augm = adding number of species
 # output: extended communities in a matrix, where each col has one more species
 extend_communities <- function(comm, num, augm) {
   if(isTRUE(augm > num - length(comm))) warning("augmentation exceeds total number of species")
@@ -229,6 +228,7 @@ extend_communities <- function(comm, num, augm) {
 }
 
 # ----- pathwise functions -----
+
 # function that computes pathwise probabilities
 # input: paths = list of paths generate between initial and final points
 # output: a tibble with characters and probabilities for paths
@@ -373,8 +373,10 @@ cartesian_prod <- function(mat){
 }
 
 # ----- matrix operation functions -----
-# Generate the matrixes and their norm form
-# mat_ent <- t(mat_ent)
+
+# function that normalize matrix accroding to markov process
+# input: mat = original mat, weights = normalizing factor
+# output: row normalized matrix
 Markov_norm <- function(mat, weights){
   mat[is.na(mat)] <- 0
   norm_row_sum <- function(mat){
@@ -386,17 +388,21 @@ Markov_norm <- function(mat, weights){
   return(mat_markov)
 }
 
-# Stationary distribution
-Stat_dist <- function(Trans){
-  Trans <- t(Trans)
-  vec_w <- eigen(Trans)$vectors[,1]
+# function that computes stationary distribution of Markov process
+# input: mat_trans = transitional matrix of Markov process
+# output: probability distribution 
+Stat_dist <- function(mat_trans){
+  mat_trans <- t(mat_trans)
+  vec_w <- eigen(mat_trans)$vectors[,1]
   vec_w <- vec_w/sum(vec_w)
   return(vec_w)
 }
 
-# Entropy 
-Entropy <- function(Trans){
-  Trans <- t(Trans)
+# function that computes entropy of a Markov transitional matrix
+# input: mat_trans = transitional matrix of Markov process
+# output: entropy value accroding to (Hill et al. 2004)
+Entropy <- function(mat_trans){
+  mat_trans <- t(mat_trans)
   logsum <- function(x){
     sum <- 0
     for (i in 1:length(x)){
@@ -404,28 +410,27 @@ Entropy <- function(Trans){
     }
     return(sum)
   }
-  vec_p <- apply(Trans, 2, logsum)
-  vec_w <- eigen(Trans)$vectors[,1] #the dominated vector
+  vec_p <- apply(mat_trans, 2, logsum)
+  vec_w <- eigen(mat_trans)$vectors[,1] #the dominated vector
   vec_w <- vec_w/(sum(vec_w))
   return(-sum(vec_p * vec_w))
 }
 
-# Species level pr
-Species_pr <- function(num, sd, names){
+# function that computes species level probabilities
+# input: num = total number of species, pd = probability distri of states;
+# input: names = names of subcommunities
+# output: species level probabilities
+Species_pr <- function(num, pd, names){
   Pr <- c(rep(0, num))
   for (i in 1:num){
     for (j in 1:2^num){
       if(is.element(i, convert2sets(names[j]))){
-        Pr[i] <- Pr[i] + sd[j]
+        Pr[i] <- Pr[i] + pd[j]
       }
     }
   }
   return(Pr)
 }
-
-
-
-
 
 # ----- tool sets -----
 
@@ -436,11 +441,6 @@ is.vec_in_mat <- function(vec,mat){
   out <- apply(mat, 2, function(x, y){isTRUE(all.equal(x, y))}, vec)
   any(out)
 }
-
-# function that normailzes each row of a matrix
-# input: mat = the original matrix
-# output: the normalized one, with each row sum equals to one
-
 
 
 # function that converts numeric vector to strings or vice versa
@@ -459,12 +459,5 @@ convert2sets <- function(str) {
   as.numeric(strsplit (str,"")[[1]] )
 }
 
-# Generate the adjacency matrix with the threshold
-set_conne <- function(value, threshold){
-  if(!is.na(value) && value>threshold){
-    return(1)
-  }else{
-    return(0)
-  }
-}
+
 # nolint end

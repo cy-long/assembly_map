@@ -32,7 +32,15 @@ for (s in 1:num) {
     l <- l + 1
   }
 }
-
+# Generate the adjacency matrix with the threshold
+set_conne <- function(value, threshold){
+  if(!is.na(value) && value>threshold){
+    return(1)
+  }else{
+    return(0)
+  }
+  
+}
 # Display the graph
 diag(mat_adj) <- 0
 palf <- colorRampPalette(c("dodgerblue","darkorange"))
