@@ -42,3 +42,5 @@ vignettes/*.pdf
 *.DS_Store
 *.tmp.RData
 *.tmp.R
+
+.vscode/
