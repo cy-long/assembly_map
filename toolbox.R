@@ -43,7 +43,13 @@ generate_l_index <- function(num) {
   }
   l_ind
 }
-
+generate_names <- function(num, sub_coms){
+  names <- c("0")
+  for (s in 1:num) {
+    names <- c(names, c(apply(sub_coms[[s]], 2, convert2names)))
+  }
+  return(names)
+}
 # ----- computational functions -----
 
 # function that computes raw/norm omega for single communities
